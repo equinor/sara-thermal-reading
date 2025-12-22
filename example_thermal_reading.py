@@ -6,13 +6,19 @@ from dotenv import load_dotenv
 from loguru import logger
 from numpy.typing import NDArray
 
-from sara_thermal_reading.main import (
-    BlobStorageLocation,
-    align_two_images,
-    create_annotated_thermal_visualization,
+from sara_thermal_reading.file_io.blob import BlobStorageLocation
+from sara_thermal_reading.file_io.file_utils import (
     download_anonymized_image,
-    find_max_temperature_in_polygon,
     load_reference_image_and_polygon,
+)
+from sara_thermal_reading.find_max_temperature_in_polygon import (
+    find_max_temperature_in_polygon,
+)
+from sara_thermal_reading.image_alignment.align_two_images_orb_bf_cv2 import (
+    align_two_images_orb_bf_cv2,
+)
+from sara_thermal_reading.visualization.create_annotated_thermal_visualization import (
+    create_annotated_thermal_visualization,
 )
 
 load_dotenv()
@@ -217,7 +223,7 @@ def save_annotated_thermal_visualization(
     return str(annotated_path)
 
 
-def example_thermal_processing_with_file_saving():
+def example_thermal_processing_with_file_saving() -> None:
     """
     Example function that demonstrates the complete thermal processing workflow
     with local file saving.
@@ -283,7 +289,7 @@ def example_thermal_processing_with_file_saving():
         logger.info(f"Saved reference image with polygon to {reference_polygon_path}")
 
         # Perform alignment
-        warped_polygon, aligned_image = align_two_images(
+        warped_polygon, aligned_image = align_two_images_orb_bf_cv2(
             reference_image,
             source_image_array,
             reference_polygon,
@@ -383,7 +389,7 @@ def example_thermal_processing_with_file_saving():
 
 
 def save_reference_image_with_polygon_locally(
-    tag_id: str, inspection_description: str, installation_code: str | None = None
+    tag_id: str, inspection_description: str, installation_code: str
 ) -> str:
 
     image_array, polygon = load_reference_image_and_polygon(
