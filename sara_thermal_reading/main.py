@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+from typing import cast
 
 import cv2
 import numpy as np
@@ -72,28 +73,19 @@ def load_image_as_array(path: str) -> np.ndarray:
 
 def upload_to_visualized(
     visualized_blob_storage_location: BlobStorageLocation,
-    image_folder_path: Path,
+    image: NDArray[np.uint8],
 ) -> None:
     logger.info(f"Uploading annotated thermal image to visualized storage account")
-    image_folder_path = image_folder_path / "images"
     vis_blob_service_client = BlobServiceClient.from_connection_string(
         DESTINATION_STORAGE_CONNECTION_STRING
     )
 
-    file = [
-        f
-        for f in image_folder_path.iterdir()
-        if f.is_file() and "unfiltered" not in f.name
-    ]
-    if file:
-        file = file[0]
-        image = load_image_as_array(str(file))
-        upload_image_to_blob(
-            vis_blob_service_client, visualized_blob_storage_location, image
-        )
-        logger.info(
-            f"Uploaded annotated thermal image to visualized storage account: {visualized_blob_storage_location.blob_container}/{visualized_blob_storage_location.blob_name}"
-        )
+    upload_image_to_blob(
+        vis_blob_service_client, visualized_blob_storage_location, image
+    )
+    logger.info(
+        f"Uploaded annotated thermal image to visualized storage account: {visualized_blob_storage_location.blob_container}/{visualized_blob_storage_location.blob_name}"
+    )
 
 
 def load_reference_image_and_polygon(
@@ -152,7 +144,7 @@ def align_two_images(
     reference_image: NDArray[np.uint8],
     source_image: NDArray[np.uint8],
     roi_polygon: list[tuple[int, int]],
-):
+) -> tuple[NDArray[np.float32], NDArray[np.uint8]]:
     """
     Align source image to reference image and transform the polygon accordingly.
 
@@ -172,7 +164,7 @@ def align_two_images(
     gray_source = cv2.cvtColor(source_image, cv2.COLOR_BGR2GRAY)
 
     # Detect ORB keypoints and compute descriptors
-    orb = cv2.ORB_create(nfeatures=1000)  # Increase features for better matching
+    orb = cv2.ORB_create(nfeatures=1000)  # type: ignore
     keypoints_ref, descriptors_ref = orb.detectAndCompute(gray_reference, None)
     keypoints_src, descriptors_src = orb.detectAndCompute(gray_source, None)
 
@@ -246,7 +238,9 @@ def align_two_images(
     # from the reference image remain valid for the aligned result
     warped_polygon = polygon_points.reshape(-1, 1, 2)
 
-    return warped_polygon, aligned_image
+    return cast(NDArray[np.float32], warped_polygon), cast(
+        NDArray[np.uint8], aligned_image
+    )
 
 
 def find_max_temperature_in_polygon(
@@ -273,7 +267,7 @@ def find_max_temperature_in_polygon(
     # Create a mask for the polygon region
     height, width = thermal_image.shape[:2]
     mask = np.zeros((height, width), dtype=np.uint8)
-    cv2.fillPoly(mask, [polygon_pts], 255)
+    cv2.fillPoly(mask, [polygon_pts], (255,))
 
     # For thermal images, we need to extract temperature information more intelligently
     # Method 1: Try to use the thermal colormap information
@@ -347,7 +341,7 @@ def find_max_temperature_in_polygon(
         f"Mapped temperature: {actual_temperature:.1f}°C (from pixel value {max_val})"
     )
 
-    return float(actual_temperature), max_loc
+    return float(actual_temperature), cast(tuple[int, int], max_loc)
 
 
 def create_annotated_thermal_visualization(
@@ -496,7 +490,7 @@ def create_annotated_thermal_visualization(
     return annotated_image
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Get thermal reading inside polygon in image and upload visualization"
     )
