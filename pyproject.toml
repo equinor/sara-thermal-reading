@@ -19,6 +19,8 @@ dependencies = [
     "loguru",
     "pathlib",
     "opencv-python",
+    "flirpy==0.3.0",
+    "typer"
 ]
 
 [project.optional-dependencies]
