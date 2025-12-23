@@ -1,19 +1,12 @@
 import json
-from pathlib import Path
 
 import typer
 from loguru import logger
 
 from sara_thermal_reading.file_io.blob import BlobStorageLocation
 from sara_thermal_reading.main_workflow import run_thermal_reading_workflow
-from sara_thermal_reading.visualization.plotting import plot_fff_from_path
 
 app = typer.Typer()
-
-
-@app.command()
-def plot_fff(file_path: Path) -> None:
-    plot_fff_from_path(file_path)
 
 
 @app.command()
