@@ -33,22 +33,24 @@ def process_thermal_image(
     inspection_description: str,
 ) -> tuple[float, NDArray[np.uint8]]:
 
-    warped_polygon, aligned_image = align_two_images_orb_bf_cv2(
+    warped_polygon, _ = align_two_images_orb_bf_cv2(
         reference_image,
         source_image_array,
         reference_polygon,
     )
 
+    # Find the maximum temperature within the polygon region using the RAW source image
     max_temperature, max_temp_location = find_max_temperature_in_polygon(
-        aligned_image, warped_polygon
+        source_image_array, warped_polygon
     )
 
     logger.info(
         f"Maximum temperature found: {max_temperature} at location {max_temp_location}"
     )
 
+    # Create annotated visualization using the RAW source image
     annotated_image = create_annotated_thermal_visualization(
-        aligned_image,
+        source_image_array,
         warped_polygon,
         max_temperature,
         max_temp_location,
