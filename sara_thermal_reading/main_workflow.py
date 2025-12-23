@@ -1,9 +1,4 @@
-import json
-from typing import cast
-
-import cv2
 import numpy as np
-from azure.storage.blob import BlobServiceClient
 from numpy.typing import NDArray
 
 from sara_thermal_reading.config.settings import settings
@@ -30,6 +25,40 @@ from sara_thermal_reading.visualization.create_annotated_thermal_visualization i
 )
 
 
+def process_thermal_image(
+    reference_image: NDArray[np.uint8],
+    source_image_array: NDArray[np.uint8],
+    reference_polygon: list[tuple[int, int]],
+    tag_id: str,
+    inspection_description: str,
+) -> tuple[float, NDArray[np.uint8]]:
+
+    warped_polygon, aligned_image = align_two_images_orb_bf_cv2(
+        reference_image,
+        source_image_array,
+        reference_polygon,
+    )
+
+    max_temperature, max_temp_location = find_max_temperature_in_polygon(
+        aligned_image, warped_polygon
+    )
+
+    logger.info(
+        f"Maximum temperature found: {max_temperature} at location {max_temp_location}"
+    )
+
+    annotated_image = create_annotated_thermal_visualization(
+        aligned_image,
+        warped_polygon,
+        max_temperature,
+        max_temp_location,
+        tag_id,
+        inspection_description,
+    )
+
+    return max_temperature, annotated_image
+
+
 def run_thermal_reading_workflow(
     anonymized_blob_storage_location: BlobStorageLocation,
     visualized_blob_storage_location: BlobStorageLocation,
@@ -50,30 +79,12 @@ def run_thermal_reading_workflow(
         installation_code, tag_id, inspection_description
     )
 
-    # Download the source image
     source_image_array = download_anonymized_image(anonymized_blob_storage_location)
 
-    warped_polygon, aligned_image = align_two_images_orb_bf_cv2(
+    max_temperature, annotated_image = process_thermal_image(
         reference_image,
         source_image_array,
         reference_polygon,
-    )
-
-    # Find the maximum temperature within the polygon region
-    max_temperature, max_temp_location = find_max_temperature_in_polygon(
-        aligned_image, warped_polygon
-    )
-
-    logger.info(
-        f"Maximum temperature found: {max_temperature} at location {max_temp_location}"
-    )
-
-    # Create annotated visualization
-    annotated_image = create_annotated_thermal_visualization(
-        aligned_image,
-        warped_polygon,
-        max_temperature,
-        max_temp_location,
         tag_id,
         inspection_description,
     )
