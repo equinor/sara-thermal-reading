@@ -93,7 +93,9 @@ def load_reference_polygon(
         ref_blob_service_client = BlobServiceClient.from_connection_string(
             settings.REFERENCE_STORAGE_CONNECTION_STRING
         )
-        polygon_path = f"{tag_id}_{inspection_description}/reference_polygon.json"
+        polygon_path = (
+            f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+        )
         polygon_json = download_blob_to_json(
             ref_blob_service_client,
             BlobStorageLocation(blobContainer=installation_code, blobName=polygon_path),
