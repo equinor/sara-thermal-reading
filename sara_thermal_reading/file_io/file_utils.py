@@ -88,7 +88,9 @@ def load_reference_image_and_polygon(
         ref_blob_service_client = BlobServiceClient.from_connection_string(
             settings.REFERENCE_STORAGE_CONNECTION_STRING
         )
-        img_path = f"{tag_id}_{inspection_description}/reference_image.jpeg"
+        img_path = (
+            f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FILENAME}"
+        )
         image_array = download_blob_to_image(
             ref_blob_service_client,
             BlobStorageLocation(blobContainer=installation_code, blobName=img_path),
@@ -118,7 +120,7 @@ def check_reference_blob_exists(
     ref_blob_service_client = BlobServiceClient.from_connection_string(
         settings.REFERENCE_STORAGE_CONNECTION_STRING
     )
-    img_path = f"{tag_id}_{inspection_description}/reference_image.jpeg"
+    img_path = f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FILENAME}"
     blob_client = ref_blob_service_client.get_blob_client(
         container=installation_code,
         blob=img_path,

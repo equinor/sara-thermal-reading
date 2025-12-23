@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     DESTINATION_STORAGE_CONNECTION_STRING: str = Field(default="")
     REFERENCE_STORAGE_ACCOUNT: str = Field(default="")
     REFERENCE_STORAGE_CONNECTION_STRING: str = Field(default="")
+    REFERENCE_IMAGE_FILENAME: str = Field(default="reference_image.jpeg")
 
 
 settings = Settings()
