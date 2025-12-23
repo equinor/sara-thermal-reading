@@ -5,9 +5,35 @@ import typer
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
     create_reference_polygon,
 )
+from sara_thermal_reading.dev_utils.run_fff_workflow_local_files import (
+    run_fff_workflow_local_files,
+)
 from sara_thermal_reading.visualization.plotting import plot_fff_from_path
 
 app = typer.Typer()
+
+
+@app.command()
+def run_fff_workflow(
+    polygon_path: str = typer.Option(..., help="Path to the polygon JSON file"),
+    reference_image_path: str = typer.Option(
+        ..., help="Path to the reference FFF image"
+    ),
+    source_image_path: str = typer.Option(
+        None, help="Path to the source FFF image (optional)"
+    ),
+    tag_id: str = typer.Option("test_tag_id", help="Tag ID"),
+    inspection_description: str = typer.Option(
+        "test_inspection_description", help="Inspection description"
+    ),
+) -> None:
+    run_fff_workflow_local_files(
+        polygon_path,
+        reference_image_path,
+        source_image_path,
+        tag_id,
+        inspection_description,
+    )
 
 
 @app.command()

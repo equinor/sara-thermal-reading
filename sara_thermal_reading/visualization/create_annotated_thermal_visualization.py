@@ -1,3 +1,5 @@
+from typing import cast
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
@@ -27,6 +29,12 @@ def create_annotated_thermal_visualization(
     """
     # Create a copy of the aligned image for annotation
     annotated_image = aligned_image.copy()
+
+    # If the image is grayscale (single channel), convert to BGR to support colored annotations
+    if len(annotated_image.shape) == 2:
+        annotated_image = cast(
+            NDArray[np.uint8], cv2.cvtColor(annotated_image, cv2.COLOR_GRAY2BGR)
+        )
 
     # Convert polygon points to integer coordinates
     polygon_pts = polygon_points.reshape(-1, 2).astype(np.int32)

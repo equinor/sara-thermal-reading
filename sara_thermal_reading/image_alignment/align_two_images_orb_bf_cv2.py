@@ -10,7 +10,7 @@ def align_two_images_orb_bf_cv2(
     reference_image: NDArray[np.uint8],
     source_image: NDArray[np.uint8],
     roi_polygon: list[tuple[int, int]],
-) -> tuple[NDArray[np.float32], NDArray[np.uint8]]:
+) -> tuple[list[tuple[int, int]], NDArray[np.uint8]]:
     """
     Align reference image to source image and transform the polygon accordingly.
 
@@ -27,9 +27,16 @@ def align_two_images_orb_bf_cv2(
     # Define the polygon points from reference image
     polygon_points = np.array(roi_polygon, dtype=np.float32)
 
-    # Convert images to grayscale
-    gray_reference = cv2.cvtColor(reference_image, cv2.COLOR_BGR2GRAY)
-    gray_source = cv2.cvtColor(source_image, cv2.COLOR_BGR2GRAY)
+    # Convert images to grayscale if they are not already
+    if len(reference_image.shape) == 3:
+        gray_reference = cv2.cvtColor(reference_image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_reference = reference_image
+
+    if len(source_image.shape) == 3:
+        gray_source = cv2.cvtColor(source_image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_source = source_image
 
     # Detect ORB keypoints and compute descriptors
     orb = cv2.ORB_create(nfeatures=1000)  # type: ignore
@@ -39,7 +46,7 @@ def align_two_images_orb_bf_cv2(
     if descriptors_ref is None or descriptors_src is None:
         logger.error("Could not find features in one or both images")
         # Return original polygon and reference image (fallback)
-        return polygon_points.reshape(-1, 1, 2), reference_image
+        return roi_polygon, reference_image
 
     # Create a BFMatcher object
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
@@ -49,7 +56,7 @@ def align_two_images_orb_bf_cv2(
 
     if len(matches) < 4:
         logger.error(f"Insufficient matches found: {len(matches)}. Need at least 4.")
-        return polygon_points.reshape(-1, 1, 2), reference_image
+        return roi_polygon, reference_image
 
     # Sort them in order of distance (best matches first)
     matches = sorted(matches, key=lambda x: x.distance)
@@ -79,7 +86,7 @@ def align_two_images_orb_bf_cv2(
     # Check if homography is valid
     if H is None:
         logger.error("Could not compute homography")
-        return polygon_points.reshape(-1, 1, 2), reference_image
+        return roi_polygon, reference_image
 
     num_inliers = np.sum(mask) if mask is not None else 0
     logger.info(
@@ -104,8 +111,11 @@ def align_two_images_orb_bf_cv2(
     )
 
     # Warp the polygon points from Reference to Source
-    warped_polygon = cv2.perspectiveTransform(polygon_points.reshape(-1, 1, 2), H)
+    warped_polygon_array = cv2.perspectiveTransform(polygon_points.reshape(-1, 1, 2), H)
 
-    return cast(NDArray[np.float32], warped_polygon), cast(
-        NDArray[np.uint8], aligned_reference_image
-    )
+    # Convert warped polygon array to list of tuples
+    warped_polygon_list = [
+        (int(pt[0]), int(pt[1])) for pt in warped_polygon_array.reshape(-1, 2)
+    ]
+
+    return warped_polygon_list, cast(NDArray[np.uint8], aligned_reference_image)
