@@ -21,7 +21,8 @@ dependencies = [
     "pathlib",
     "opencv-python",
     "flirpy==0.3.0",
-    "typer"
+    "typer",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]
