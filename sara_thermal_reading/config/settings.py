@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     REFERENCE_STORAGE_CONNECTION_STRING: str = Field(default="")
     REFERENCE_IMAGE_FILENAME: str = Field(default="reference_image.jpeg")
     REFERENCE_POLYGON_FILENAME: str = Field(default="reference_polygon.json")
+    WORKFLOW_TO_RUN: str = Field(default="fff-workflow")
 
 
 settings = Settings()

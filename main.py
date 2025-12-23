@@ -3,7 +3,9 @@ import json
 import typer
 from loguru import logger
 
+from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.file_io.blob import BlobStorageLocation
+from sara_thermal_reading.main_fff_workflow import run_thermal_reading_fff_workflow
 from sara_thermal_reading.main_workflow import run_thermal_reading_workflow
 
 app = typer.Typer()
@@ -38,14 +40,24 @@ def run_thermal_reading(
         logger.error(f"Error parsing input: {e}")
         raise typer.Exit(code=1)
 
-    run_thermal_reading_workflow(
-        anonymized_location,
-        visualized_location,
-        tag_id,
-        inspection_description,
-        installation_code,
-        temperature_output_file,
-    )
+    if settings.WORKFLOW_TO_RUN == "fff-workflow":
+        run_thermal_reading_fff_workflow(
+            anonymized_location,
+            visualized_location,
+            tag_id,
+            inspection_description,
+            installation_code,
+            temperature_output_file,
+        )
+    else:
+        run_thermal_reading_workflow(
+            anonymized_location,
+            visualized_location,
+            tag_id,
+            inspection_description,
+            installation_code,
+            temperature_output_file,
+        )
 
 
 if __name__ == "__main__":
