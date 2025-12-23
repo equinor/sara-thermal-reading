@@ -33,11 +33,13 @@ def process_thermal_image(
     inspection_description: str,
 ) -> tuple[float, NDArray[np.uint8]]:
 
-    warped_polygon, _ = align_two_images_orb_bf_cv2(
+    warped_polygon_list, _ = align_two_images_orb_bf_cv2(
         reference_image,
         source_image_array,
         reference_polygon,
     )
+
+    warped_polygon = np.array(warped_polygon_list, dtype=np.float32)
 
     # Find the maximum temperature within the polygon region using the RAW source image
     max_temperature, max_temp_location = find_max_temperature_in_polygon(
@@ -100,6 +102,6 @@ def run_thermal_reading_workflow(
 
     with open(temperature_output_file, "w") as file:
         file.write(str(max_temperature))
-        print(
+        logger.info(
             f"Max temperature: {max_temperature} written to {temperature_output_file}"
         )
