@@ -1,9 +1,12 @@
+import logging
 from typing import cast
 
 import cv2
 import numpy as np
-from loguru import logger
 from numpy.typing import NDArray
+
+logger = logging.getLogger(__name__)
+
 
 # This was the first version of the image alignment algorithm
 

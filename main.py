@@ -1,12 +1,22 @@
 import json
+import logging
 
 import typer
-from loguru import logger
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 
+from sara_thermal_reading.config.logger import setup_logger
+from sara_thermal_reading.config.open_telemetry import setup_open_telemetry
 from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.file_io.blob import BlobStorageLocation
 from sara_thermal_reading.main_fff_workflow import run_thermal_reading_fff_workflow
 from sara_thermal_reading.main_workflow import run_thermal_reading_workflow
+
+setup_logger()
+logger = logging.getLogger(__name__)
+setup_open_telemetry()
+tracer = trace.get_tracer(settings.OTEL_SERVICE_NAME)
+
 
 app = typer.Typer()
 
@@ -40,24 +50,38 @@ def run_thermal_reading(
         logger.error(f"Error parsing input: {e}")
         raise typer.Exit(code=1)
 
-    if settings.WORKFLOW_TO_RUN == "fff-workflow":
-        run_thermal_reading_fff_workflow(
-            anonymized_location,
-            visualized_location,
-            tag_id,
-            inspection_description,
-            installation_code,
-            temperature_output_file,
-        )
-    else:
-        run_thermal_reading_workflow(
-            anonymized_location,
-            visualized_location,
-            tag_id,
-            inspection_description,
-            installation_code,
-            temperature_output_file,
-        )
+    with tracer.start_as_current_span(
+        "cli.run",
+        attributes={
+            "src.container": anonymized_location.blob_container,
+            "src.blob": anonymized_location.blob_name,
+            "dst.container": visualized_location.blob_container,
+            "dst.blob": visualized_location.blob_name,
+        },
+    ) as span:
+        try:
+            if settings.WORKFLOW_TO_RUN == "fff-workflow":
+                run_thermal_reading_fff_workflow(
+                    anonymized_location,
+                    visualized_location,
+                    tag_id,
+                    inspection_description,
+                    installation_code,
+                    temperature_output_file,
+                )
+            else:
+                run_thermal_reading_workflow(
+                    anonymized_location,
+                    visualized_location,
+                    tag_id,
+                    inspection_description,
+                    installation_code,
+                    temperature_output_file,
+                )
+        except Exception as e:
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR))
+            raise
 
 
 if __name__ == "__main__":

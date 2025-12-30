@@ -17,12 +17,14 @@ dependencies = [
     "azure-storage-blob",
     "pydantic",
     "pydantic-settings",
-    "loguru",
     "pathlib",
     "opencv-python",
     "flirpy==0.3.0",
     "typer",
-    "matplotlib"
+    "matplotlib",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
 ]
 
 [project.optional-dependencies]

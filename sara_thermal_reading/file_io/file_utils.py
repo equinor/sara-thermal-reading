@@ -1,12 +1,15 @@
 import json
+import logging
 
 import numpy as np
 from azure.storage.blob import BlobServiceClient
-from loguru import logger
 from numpy.typing import NDArray
 from PIL import Image
 
 from sara_thermal_reading.config.settings import settings
+
+logger = logging.getLogger(__name__)
+
 
 from .blob import (
     BlobStorageLocation,

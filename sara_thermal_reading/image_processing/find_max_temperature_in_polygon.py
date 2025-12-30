@@ -1,9 +1,11 @@
+import logging
 from typing import cast
 
 import cv2
 import numpy as np
-from loguru import logger
 from numpy.typing import NDArray
+
+logger = logging.getLogger(__name__)
 
 
 def find_max_temperature_in_polygon(

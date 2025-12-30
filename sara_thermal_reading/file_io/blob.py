@@ -1,13 +1,15 @@
+import logging
 import os
 from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 from azure.storage.blob import BlobServiceClient, ContentSettings
-from loguru import logger
 from numpy.typing import NDArray
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+logger = logging.getLogger(__name__)
 
 
 class BlobStorageLocation(BaseModel):

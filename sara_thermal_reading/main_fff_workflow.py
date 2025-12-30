@@ -1,8 +1,12 @@
+import logging
+
 import numpy as np
-from loguru import logger
 from numpy.typing import NDArray
 
 from sara_thermal_reading.config.settings import settings
+
+logger = logging.getLogger(__name__)
+
 from sara_thermal_reading.file_io.blob import BlobStorageLocation
 from sara_thermal_reading.file_io.file_utils import (
     check_reference_blob_exists,

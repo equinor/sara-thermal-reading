@@ -1,12 +1,14 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any, List, Sequence
 
 import cv2
 import numpy as np
-from loguru import logger
 
 from sara_thermal_reading.file_io.fff_loader import load_fff
+
+logger = logging.getLogger(__name__)
 
 
 def create_reference_polygon(
