@@ -27,7 +27,7 @@ Install with `pip install -r requirements.txt -e .[dev]`
 
 ### Example: Run locally
 
-Can be tested by running `python ./example_thermal_reading.py` with the parameters for source and reference correctly set in you .env file. See .env.exampel for which values should be set. Destination storage account is not used in `example_thermal_reading.py`, files are just stored locally to a "results" folder.
+Can be tested by running `python ./sandbox/example_thermal_reading.py` with the parameters for source and reference correctly set in you .env file. See .env.exampel for which values should be set. Destination storage account is not used in `example_thermal_reading.py`, files are just stored locally to a "results" folder.
 
 ### Example .env.example
 
