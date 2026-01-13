@@ -3,6 +3,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import typer
 
+from sara_thermal_reading.dev_utils.alignment_comparison import (
+    compare_alignments_synthetic,
+)
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
     create_reference_polygon,
 )
@@ -79,6 +82,13 @@ def create_polygon(
     ),
 ) -> None:
     create_reference_polygon(fff_image_path, polygon_json_output_path)
+
+
+@app.command()
+def compare_alignment_synthetic(
+    num_samples: int = typer.Option(5, help="Number of synthetic samples to generate"),
+) -> None:
+    compare_alignments_synthetic(num_samples)
 
 
 if __name__ == "__main__":

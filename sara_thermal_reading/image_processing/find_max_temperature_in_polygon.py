@@ -53,10 +53,14 @@ def find_max_temperature_in_polygon(
 
         # Calculate standard deviation to see which channel has more information
         hsv_std = (
-            np.std(masked_hsv_v[masked_hsv_v > 0]) if np.any(masked_hsv_v > 0) else 0
+            np.std(cast(NDArray[np.uint8], masked_hsv_v[masked_hsv_v > 0]))
+            if np.any(masked_hsv_v > 0)
+            else 0
         )
         gray_std = (
-            np.std(masked_gray[masked_gray > 0]) if np.any(masked_gray > 0) else 0
+            np.std(cast(NDArray[np.uint8], masked_gray[masked_gray > 0]))
+            if np.any(masked_gray > 0)
+            else 0
         )
 
         if hsv_std > gray_std:

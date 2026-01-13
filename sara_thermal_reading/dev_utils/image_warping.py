@@ -10,7 +10,7 @@ def random_translate_thermal_img(
     image: NDArray[np.float64],
     min_percent: float = 0.05,
     max_percent: float = 0.1,
-) -> NDArray[np.float64]:
+) -> tuple[NDArray[np.float64], tuple[float, float]]:
     """
     Randomly translates a thermal image in a random direction.
     Fills the new blank space with the mean value of the image.
@@ -21,7 +21,7 @@ def random_translate_thermal_img(
         max_percent: Maximum translation distance as a percentage of the image size (0.0-1.0).
 
     Returns:
-        Translated thermal image.
+        tuple: (Translated thermal image, (tx, ty) translation tuple).
     """
     height, width = image.shape[:2]
     mean_value = float(np.mean(image))
@@ -45,4 +45,4 @@ def random_translate_thermal_img(
         borderValue=(mean_value,),
     )
 
-    return cast(NDArray[np.float64], translated_image)
+    return cast(NDArray[np.float64], translated_image), (float(tx), float(ty))

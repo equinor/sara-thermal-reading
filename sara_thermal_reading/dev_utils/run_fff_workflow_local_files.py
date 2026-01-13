@@ -27,14 +27,12 @@ def run_fff_workflow_local_files(
     with open(polygon_path, "r") as f:
         polygon_points = json.load(f)
 
-    # Use source image if provided, else generate a "mock" source image
-    # by warping the reference image
     if source_image_path:
         source_image = load_fff(source_image_path)
         source_title = "Source Image (Loaded)"
     else:
         print("No source image provided. Generating warped image from reference...")
-        source_image = random_translate_thermal_img(reference_image)
+        source_image, _ = random_translate_thermal_img(reference_image)
         source_title = "Source Image (Generated/Warped)"
 
     (
@@ -42,7 +40,6 @@ def run_fff_workflow_local_files(
         max_temp_location,
         annotated_image,
         warped_polygon,
-        warped_reference_img,
     ) = process_thermal_image_fff(
         reference_image,
         source_image,
@@ -53,7 +50,7 @@ def run_fff_workflow_local_files(
 
     print(f"Workflow complete. Max Temperature: {max_temperature}")
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 12))
+    _, axes = plt.subplots(2, 2, figsize=(12, 12))
     axes = axes.flatten()
 
     plot_thermal_image(
@@ -68,9 +65,6 @@ def run_fff_workflow_local_files(
         source_title,
         ax=axes[1],
     )
-
-    axes[2].imshow(warped_reference_img, cmap="gray")
-    axes[2].set_title("Warped Reference (Aligned to Source)")
 
     warped_poly_pts = np.array(warped_polygon)
     warped_poly_pts = np.vstack([warped_poly_pts, warped_poly_pts[0]])

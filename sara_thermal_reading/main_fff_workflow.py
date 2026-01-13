@@ -14,9 +14,7 @@ from sara_thermal_reading.file_io.file_utils import (
     load_reference_fff_image_and_polygon,
     upload_to_visualized,
 )
-from sara_thermal_reading.image_alignment.align_two_images_orb_bf_cv2 import (
-    align_two_images_orb_bf_cv2,
-)
+from sara_thermal_reading.image_alignment import get_alignment_strategy
 from sara_thermal_reading.image_processing.convert_thermal_to_uint8 import (
     convert_thermal_to_uint8,
 )
@@ -39,20 +37,20 @@ def process_thermal_image_fff(
     tuple[int, int],
     NDArray[np.uint8],
     list[tuple[int, int]],
-    NDArray[np.uint8],
 ]:
 
     reference_image_uint8 = convert_thermal_to_uint8(reference_image)
     source_image_uint8 = convert_thermal_to_uint8(source_image_array)
 
-    warped_polygon_list, warped_reference_img = align_two_images_orb_bf_cv2(
+    alignment_strategy = get_alignment_strategy(settings.IMAGE_ALIGNMENT_METHOD)
+    warped_polygon = alignment_strategy.align(
         reference_image_uint8,
         source_image_uint8,
         reference_polygon,
     )
 
     # Convert list of tuples back to numpy array for processing functions
-    warped_polygon_array = np.array(warped_polygon_list, dtype=np.float32)
+    warped_polygon_array = np.array(warped_polygon, dtype=np.float32)
 
     max_temperature, max_temp_location = find_max_temperature_in_polygon_raw_thermal(
         source_image_array, warped_polygon_array
@@ -75,8 +73,7 @@ def process_thermal_image_fff(
         max_temperature,
         max_temp_location,
         annotated_image,
-        warped_polygon_list,
-        warped_reference_img,
+        warped_polygon,
     )
 
 
@@ -108,7 +105,7 @@ def run_thermal_reading_fff_workflow(
     source_image_array = download_anonymized_fff_image(anonymized_blob_storage_location)
 
     logger.info(f"Processing thermal fff image")
-    max_temperature, _, annotated_image, _, _ = process_thermal_image_fff(
+    max_temperature, _, annotated_image, _ = process_thermal_image_fff(
         reference_image,
         source_image_array,
         reference_polygon,

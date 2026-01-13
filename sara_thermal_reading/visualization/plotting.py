@@ -14,6 +14,7 @@ def plot_thermal_image(
     title: str,
     polygon_points: Optional[list[tuple[int, int]]] = None,
     ax: Optional[Axes] = None,
+    polygon_label: Optional[str] = None,
 ) -> None:
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 8))
@@ -27,7 +28,14 @@ def plot_thermal_image(
         points = np.vstack(
             [points, points[0]]
         )  # Closing the polygon (last->first point)
-        ax.plot(points[:, 0], points[:, 1], color="lime", linestyle="-", linewidth=2)
+        ax.plot(
+            points[:, 0],
+            points[:, 1],
+            color="lime",
+            linestyle="-",
+            linewidth=2,
+            label=polygon_label,
+        )
 
 
 def plot_fff_from_path(
