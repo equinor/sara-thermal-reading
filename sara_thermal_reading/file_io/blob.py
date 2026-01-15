@@ -95,6 +95,7 @@ def upload_image_to_blob(
 ) -> None:
 
     def ndarray_to_bytesio(arr: np.ndarray, format: str = "JPEG") -> BytesIO:
+
         img = Image.fromarray(arr)
 
         if img.mode == "RGBA" and format.upper() == "JPEG":
