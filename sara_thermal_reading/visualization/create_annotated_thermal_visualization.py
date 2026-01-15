@@ -279,4 +279,8 @@ def create_annotated_thermal_visualization(
     if show_colorbar and thermal_data is not None:
         return _create_colorbar(annotated_image, thermal_data, scale_factor)
 
+    if len(annotated_image.shape) == 3 and annotated_image.shape[2] == 3:
+        annotated_image = cast(
+            NDArray[np.uint8], cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
+        )
     return annotated_image
