@@ -69,6 +69,7 @@ def process_thermal_image_fff(
         max_temp_location,
         tag_id,
         inspection_description,
+        thermal_data=source_image_array,
     )
 
     return (
