@@ -113,6 +113,24 @@ def load_reference_polygon(
         raise
 
 
+def download_reference_polygon(
+    blob_service_client: BlobServiceClient, blob_storage_location: BlobStorageLocation
+) -> list[tuple[int, int]]:
+    try:
+        polygon_json = download_blob_to_json(
+            blob_service_client,
+            blob_storage_location,
+        )
+        polygon = json.loads(polygon_json)
+        return polygon
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode polygon JSON: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading reference polygon: {e}")
+        raise
+
+
 def load_reference_image_and_polygon(
     installation_code: str, tag_id: str, inspection_description: str
 ) -> tuple[NDArray[np.uint8], list[tuple[int, int]]]:

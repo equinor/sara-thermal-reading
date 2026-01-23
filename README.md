@@ -46,6 +46,22 @@ python utils_cli.py create-polygon path/to/image.fff
 
 Will by default save to `reference_polygon.json` in the current directory
 
+### Create reference polygon for thermal reference image
+
+Draw polygon on thermal reference image, and save it to blob
+
+```bash
+python utils_cli.py create-polygon-cloud blobstorageaccountname "tagId" "inspectiondescription"
+```
+
+### Show reference polygon for thermal reference image
+
+Show reference polygon on thermal reference image
+
+```bash
+python utils_cli.py show-polygon-cloud blobstorageaccountname "tagId" "inspectiondescription"
+```
+
 ### Plot reference polygon local files
 
 ```bash

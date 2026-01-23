@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import typer
 
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
+    create_cloud_reference_polygon,
     create_reference_polygon,
+    show_cloud_reference_polygon,
 )
 from sara_thermal_reading.dev_utils.run_fff_workflow_local_files import (
     run_fff_workflow_local_files,
@@ -79,6 +81,32 @@ def create_polygon(
     ),
 ) -> None:
     create_reference_polygon(fff_image_path, polygon_json_output_path)
+
+
+@app.command()
+def create_polygon_cloud(
+    storage_account: str = typer.Argument(..., help="Storage account name"),
+    tag: str = typer.Argument(..., help="Tag"),
+    desc: str = typer.Argument(..., help="Inspection description"),
+) -> None:
+    create_cloud_reference_polygon(
+        storage_account,
+        tag,
+        desc,
+    )
+
+
+@app.command()
+def show_polygon_cloud(
+    storage_account: str = typer.Argument(..., help="Storage account name"),
+    tag: str = typer.Argument(..., help="Tag"),
+    desc: str = typer.Argument(..., help="Inspection description"),
+) -> None:
+    show_cloud_reference_polygon(
+        storage_account,
+        tag,
+        desc,
+    )
 
 
 if __name__ == "__main__":

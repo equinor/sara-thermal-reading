@@ -33,7 +33,8 @@ dev = [
     "mypy",
     "black",
     "isort",
-    "flake8"
+    "flake8",
+    "mpl-point-clicker"
 ]
 
 [tool.setuptools.packages.find]
