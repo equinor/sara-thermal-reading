@@ -1,8 +1,13 @@
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
+import requests
 import typer
+from azure.storage.blob import BlobServiceClient
 
+from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
     create_cloud_reference_polygon,
     create_reference_polygon,
@@ -11,6 +16,7 @@ from sara_thermal_reading.dev_utils.create_reference_polygon import (
 from sara_thermal_reading.dev_utils.run_fff_workflow_local_files import (
     run_fff_workflow_local_files,
 )
+from sara_thermal_reading.file_io.fff_loader import load_fff_from_bytes
 from sara_thermal_reading.file_io.file_utils import load_reference_fff_image_and_polygon
 from sara_thermal_reading.visualization.plotting import (
     plot_fff_from_path,
@@ -107,6 +113,83 @@ def show_polygon_cloud(
         tag,
         desc,
     )
+
+
+@app.command()
+def view_all_thermal_from_blobs() -> None:
+    blob_service_client = BlobServiceClient.from_connection_string(
+        settings.SOURCE_STORAGE_CONNECTION_STRING
+    )
+    container_client = blob_service_client.get_container_client("kaa")
+    all_blobs_iterator = container_client.list_blobs()
+    all_fff_blobs = [blob for blob in all_blobs_iterator if blob.name.endswith(".fff")]
+
+    for fff_blob in all_fff_blobs:
+        blob_client = container_client.get_blob_client(fff_blob.name)
+        fff_bytes = blob_client.download_blob().readall()
+        fff_image = load_fff_from_bytes(fff_bytes)
+        time_str = blob_client.blob_name.split("__")[-1].replace(".fff", "")
+        time_datetime = datetime.strptime(time_str, "%Y%m%d-%H%M%S")
+
+        year, month, day, hour = (
+            time_datetime.year,
+            time_datetime.month,
+            time_datetime.day,
+            time_datetime.hour + 1,
+        )
+        url = f"https://rim.k8s.met.no/api/v1/observations?sources=SN47260&referenceTime={year}-{month:02d}-{day:02d}T{hour:02d}:00:00Z/{year}-{month:02d}-{day:02d}T{hour:02d}:59:59Z&elements=air_temperature&timeResolution=hours"
+        response = requests.get(url, allow_redirects=False)
+        ambient_temp_from_api = response.json()["data"][0]["observations"][0]["value"]
+        print(f"Ambient temperature from API: {ambient_temp_from_api:.2f} °C")
+
+        ambient_temp_in_image = np.median(fff_image)
+        print(f"Ambient temperature measured in image: {ambient_temp_in_image:.2f} °C")
+
+        plt.figure()
+        plt.clf()
+        fig = plt.gcf()
+        fig.set_figwidth(8)
+        fig.set_figheight(9)
+        plt.subplots_adjust(
+            left=0.1, bottom=0.1, right=0.9, top=1, wspace=None, hspace=None
+        )
+        plt.subplot(2, 1, 1)
+        plt.imshow(fff_image, cmap="jet")
+        plt.axis("off")
+        plt.colorbar(label="Temperature (°C)")
+        plt.subplot(2, 1, 2)
+        plt.hist(
+            fff_image.flatten(),
+            bins=100,
+            range=(ambient_temp_in_image - 5, ambient_temp_in_image + 5),
+        )
+        plt.axvline(
+            ambient_temp_in_image,
+            color="black",
+            linestyle="dashed",
+            linewidth=2,
+            label=f"Image: {ambient_temp_in_image:.2f} °C",
+        )
+        plt.axvline(
+            ambient_temp_from_api,
+            color="red",
+            linestyle="dashed",
+            linewidth=2,
+            label=f"API: {ambient_temp_from_api:.2f} °C",
+        )
+        plt.legend()
+        plt.show()
+
+        fig.canvas.draw()
+        # Mypy does not see that canvas is FigureCanvasAgg and buffer_rgba exists
+        data_rgba = np.asarray(fig.canvas.buffer_rgba())  # type: ignore[attr-defined]
+        data_rgb = data_rgba[:, :, :3]
+
+        plt.imsave(
+            f"./results/{fff_blob.name.replace('/', '_').replace('.fff', '')}_visualization.png",
+            data_rgb,
+        )
+    pass
 
 
 if __name__ == "__main__":
