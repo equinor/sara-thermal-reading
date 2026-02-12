@@ -23,7 +23,7 @@ Both the image and polygon needs to be stored in a container named `installation
 
 ### Install locally
 
-Install with `pip install -r requirements.txt -e .[dev]`
+Install with `pip install -r requirements.txt -e ".[dev]"`
 
 ### Example .env.example
 
