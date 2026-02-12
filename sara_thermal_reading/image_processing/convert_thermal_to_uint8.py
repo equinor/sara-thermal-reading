@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from sara_thermal_reading.config.settings import settings
+
 
 def convert_thermal_to_uint8(
     thermal_image: NDArray[np.float64],
@@ -13,14 +15,14 @@ def convert_thermal_to_uint8(
     Args:
         thermal_image: The input thermal image with temperature values (float64).
         clip_range: A tuple of (min_value, max_value) to use for clipping and normalization.
-                    If None, uses the min and max values of the image.
+                    If None, uses the fixed temperature range from settings for consistent color scaling.
 
     Returns:
         The converted uint8 image normalized between 0 and 255.
     """
     if clip_range is None:
-        vmin = float(np.min(thermal_image))
-        vmax = float(np.max(thermal_image))
+        vmin = settings.THERMAL_TEMP_MIN
+        vmax = settings.THERMAL_TEMP_MAX
     else:
         vmin, vmax = clip_range
 

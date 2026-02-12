@@ -5,6 +5,8 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from numpy.typing import NDArray
 
+from sara_thermal_reading.config.settings import settings
+
 
 def create_annotated_thermal_visualization(
     aligned_image: NDArray[np.float64],
@@ -19,7 +21,12 @@ def create_annotated_thermal_visualization(
     fig.set_figheight(4)
     plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
     ax = plt.gca()
-    plt.imshow(aligned_image, cmap="RdYlBu_r")
+    plt.imshow(
+        aligned_image,
+        cmap="RdYlBu_r",
+        vmin=settings.THERMAL_TEMP_MIN,
+        vmax=settings.THERMAL_TEMP_MAX,
+    )
     patch = plt.Polygon(
         polygon_points,
         closed=True,
