@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     OTEL_SERVICE_NAME: str = Field(default="sara-thermal-reading")
     OTEL_EXPORTER_OTLP_ENDPOINT: str = Field(default="http://localhost:4317")
     OTEL_EXPORTER_OTLP_PROTOCOL: str = Field(default="grpc")
+    THERMAL_TEMP_MIN: float = Field(default=-10.0)
+    THERMAL_TEMP_MAX: float = Field(default=70.0)
 
 
 settings = Settings()

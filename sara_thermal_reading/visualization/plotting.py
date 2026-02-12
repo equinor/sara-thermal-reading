@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 
+from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.file_io.fff_loader import load_fff_from_bytes
 
 
@@ -18,7 +19,12 @@ def plot_thermal_image(
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 8))
 
-    im = ax.imshow(image, cmap="jet")
+    im = ax.imshow(
+        image,
+        cmap="jet",
+        vmin=settings.THERMAL_TEMP_MIN,
+        vmax=settings.THERMAL_TEMP_MAX,
+    )
     plt.colorbar(im, ax=ax, label="Temperature")
     ax.set_title(title)
 

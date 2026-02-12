@@ -13,6 +13,7 @@ from matplotlib.figure import Figure
 from mpl_point_clicker import clicker
 from numpy.typing import NDArray
 
+from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.file_io.blob import (
     BlobStorageLocation,
     download_blob_to_image,
@@ -193,14 +194,24 @@ def plot_images_from_blob(
         plt.subplot(1, 2, 1)
         plt.imshow(jpeg_array, cmap="jet")
         plt.subplot(1, 2, 2)
-        plt.imshow(thermal_image_array, cmap="jet")
+        plt.imshow(
+            thermal_image_array,
+            cmap="jet",
+            vmin=settings.THERMAL_TEMP_MIN,
+            vmax=settings.THERMAL_TEMP_MAX,
+        )
         plt.subplot(1, 2, 2)
 
     except Exception as e:
         logger.warning(f"Failed to load JPEG image: {e}. Using FFF image only.")
 
         plt.figure()
-        plt.imshow(thermal_image_array, cmap="jet")
+        plt.imshow(
+            thermal_image_array,
+            cmap="jet",
+            vmin=settings.THERMAL_TEMP_MIN,
+            vmax=settings.THERMAL_TEMP_MAX,
+        )
         plt.gca()
 
 
@@ -234,14 +245,24 @@ def create_cloud_reference_polygon(
         plt.subplot(1, 2, 1)
         plt.imshow(jpeg_array, cmap="jet")
         plt.subplot(1, 2, 2)
-        plt.imshow(thermal_image_array, cmap="jet")
+        plt.imshow(
+            thermal_image_array,
+            cmap="jet",
+            vmin=settings.THERMAL_TEMP_MIN,
+            vmax=settings.THERMAL_TEMP_MAX,
+        )
         ax = plt.subplot(1, 2, 2)
 
     except Exception as e:
         logger.warning(f"Failed to load JPEG image: {e}. Using FFF image only.")
 
         fig = plt.figure()
-        plt.imshow(thermal_image_array, cmap="jet")
+        plt.imshow(
+            thermal_image_array,
+            cmap="jet",
+            vmin=settings.THERMAL_TEMP_MIN,
+            vmax=settings.THERMAL_TEMP_MAX,
+        )
         ax = plt.gca()
 
     # Draw polygon interactively
