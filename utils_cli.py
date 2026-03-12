@@ -14,6 +14,7 @@ from sara_thermal_reading.dev_utils.run_fff_workflow_local_files import (
     run_fff_workflow_local_files,
 )
 from sara_thermal_reading.file_io.blob import BlobStore
+from sara_thermal_reading.main_fff_workflow import process_thermal_image_fff
 from sara_thermal_reading.visualization.plotting import (
     plot_fff_from_path,
     plot_thermal_image,
@@ -215,6 +216,160 @@ def view_all_thermal_from_blobs() -> None:
             data_rgb,
         )
     pass
+
+
+@app.command()
+def run_matching_single(
+    blob_name_fff: str = typer.Option(..., help="Name of the blob"),
+    installation_code: str = typer.Option(
+        ..., help="Installation code = name of the container"
+    ),
+) -> None:
+    tag_id: str = blob_name_fff.split("/")[-1].split("__")[0]
+    inspection_description: str = blob_name_fff.split("/")[-1].split("__")[2]
+    inspection_description = inspection_description.replace("-", " ")
+
+    source_blob_store = BlobStore(
+        installation_code=installation_code,
+        connection_string=settings.SOURCE_STORAGE_CONNECTION_STRING,
+    )
+    source_image_fff: np.ndarray = source_blob_store.download_fff(blob_name_fff)
+
+    reference_blob_store = BlobStore(
+        installation_code=installation_code,
+        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
+    )
+    reference_image_fff_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+    )
+    reference_image_fff: np.ndarray = reference_blob_store.download_fff(
+        reference_image_fff_blob_name
+    )
+    reference_polygon_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+    )
+    reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
+        reference_polygon_blob_name
+    )
+
+    temperature, annotated_image, warped_polygon_list, warped_reference_img = (
+        process_thermal_image_fff(
+            reference_image_fff, source_image_fff, reference_polygon
+        )
+    )
+
+    plot_matching(
+        reference_image_fff=reference_image_fff,
+        source_image_fff=source_image_fff,
+        reference_polygon=reference_polygon,
+        warped_polygon_list=warped_polygon_list,
+    )
+
+
+def plot_matching(
+    reference_image_fff: np.ndarray,
+    source_image_fff: np.ndarray,
+    reference_polygon: list[tuple[int, int]],
+    warped_polygon_list: list[tuple[int, int]],
+) -> None:
+    polygon_np = np.array(reference_polygon)
+    warped_polygon_np = np.array(warped_polygon_list)
+
+    plt.ioff()
+
+    plt.figure("Matching")
+    fig = plt.gcf()
+    fig.set_figwidth(15)
+    fig.set_figheight(5)
+    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    plt.clf()
+
+    plt.subplot(1, 2, 1)
+    plt.title("Reference image")
+    plt.imshow(reference_image_fff, cmap="jet")
+    plt.fill(
+        polygon_np[:, 0],
+        polygon_np[:, 1],
+        facecolor="red",
+        edgecolor="white",
+        linewidth=2,
+        alpha=0.5,
+    )
+    plt.axis("off")
+    plt.colorbar()
+
+    plt.subplot(1, 2, 2)
+    plt.title("Source image")
+    plt.imshow(source_image_fff, cmap="jet")
+    plt.fill(
+        warped_polygon_np[:, 0],
+        warped_polygon_np[:, 1],
+        facecolor="red",
+        edgecolor="white",
+        linewidth=2,
+        alpha=0.5,
+    )
+    plt.axis("off")
+    plt.colorbar()
+
+    plt.show()
+
+
+@app.command()
+def run_matching_all(
+    tag_id: str = typer.Option(..., help="Tag ID"),
+    installation_code: str = typer.Option(
+        ..., help="Installation code = name of the container"
+    ),
+    inspection_description: str = typer.Option(..., help="Inspection description"),
+) -> None:
+    source_blob_store = BlobStore(
+        installation_code=installation_code,
+        connection_string=settings.SOURCE_STORAGE_CONNECTION_STRING,
+    )
+    all_blob_names = source_blob_store.list_blobs_by_prefix(prefix="")
+    source_fff_blob_names = [
+        name
+        for name in all_blob_names
+        if name.endswith(".fff")
+        and name.split("/")[-1].split("__")[0] == tag_id
+        and name.split("/")[-1].split("__")[2]
+        == inspection_description.replace(" ", "-")
+    ]
+
+    reference_blob_store = BlobStore(
+        installation_code=installation_code,
+        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
+    )
+    reference_image_fff_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+    )
+    reference_image_fff: np.ndarray = reference_blob_store.download_fff(
+        reference_image_fff_blob_name
+    )
+    reference_polygon_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+    )
+    reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
+        reference_polygon_blob_name
+    )
+
+    for blob_name_fff in source_fff_blob_names:
+        print(f"Processing: {blob_name_fff}")
+        source_image_fff: np.ndarray = source_blob_store.download_fff(blob_name_fff)
+
+        temperature, annotated_image, warped_polygon_list, _ = (
+            process_thermal_image_fff(
+                reference_image_fff, source_image_fff, reference_polygon
+            )
+        )
+
+        plot_matching(
+            reference_image_fff=reference_image_fff,
+            source_image_fff=source_image_fff,
+            reference_polygon=reference_polygon,
+            warped_polygon_list=warped_polygon_list,
+        )
 
 
 if __name__ == "__main__":

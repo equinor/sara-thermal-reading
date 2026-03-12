@@ -1,5 +1,6 @@
 import logging
 
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -53,8 +54,27 @@ def process_thermal_image_fff(
     NDArray[np.uint8],
 ]:
 
-    reference_image_uint8 = convert_thermal_to_uint8(reference_image)
-    source_image_uint8 = convert_thermal_to_uint8(source_image_array)
+    # Normalize both images to their shared (overlapping) temperature range so
+    # that a given temperature maps to the same brightness in both images.
+    # This prevents absolute temperature differences between captures from
+    # affecting the matching.
+    shared_vmin = max(float(np.min(reference_image)), float(np.min(source_image_array)))
+    shared_vmax = min(float(np.max(reference_image)), float(np.max(source_image_array)))
+    shared_clip_range = (shared_vmin, shared_vmax)
+
+    reference_image_uint8 = convert_thermal_to_uint8(
+        reference_image, clip_range=shared_clip_range
+    )
+    source_image_uint8 = convert_thermal_to_uint8(
+        source_image_array, clip_range=shared_clip_range
+    )
+
+    # Apply CLAHE to enhance local structural contrast (edges, gradients) in both
+    # images equally. ORB keypoints are gradient-based, so this makes feature
+    # detection focus on structure rather than absolute brightness levels.
+    clahe = cv2.createCLAHE(clipLimit=20.0, tileGridSize=(8, 8))
+    reference_image_uint8 = clahe.apply(reference_image_uint8).astype(np.uint8)
+    source_image_uint8 = clahe.apply(source_image_uint8).astype(np.uint8)
 
     warped_polygon_list, warped_reference_img = align_two_images_orb_bf_cv2(
         reference_image_uint8,
