@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
     create_reference_polygon,
 )
@@ -33,10 +34,14 @@ def create_reference_polygons() -> None:
         # plt.axis("off")
 
         fff_image = load_fff(reference_image_path)
-        fff_image = np.clip(fff_image, -10, 20)
+        fff_image = np.clip(
+            fff_image, settings.THERMAL_TEMP_MIN, settings.THERMAL_TEMP_MAX
+        )
         plt.figure("Thermal")
         plt.clf()
-        plt.imshow(fff_image)
+        plt.imshow(
+            fff_image, vmin=settings.THERMAL_TEMP_MIN, vmax=settings.THERMAL_TEMP_MAX
+        )
         plt.colorbar()
         plt.axis("off")
 

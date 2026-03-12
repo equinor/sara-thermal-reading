@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.file_io.fff_loader import load_fff
 from sara_thermal_reading.image_alignment.align_two_images_orb_bf_cv2 import (
     align_two_images_orb_bf_cv2,
@@ -57,7 +58,9 @@ def run_matching_single(tag: str) -> None:
         plt.subplot(2, 1, 1)
         plt.title("Reference image")
         # plt.imshow(ref_uint8)
-        plt.imshow(ref_image, vmin=0, vmax=50)
+        plt.imshow(
+            ref_image, vmin=settings.THERMAL_TEMP_MIN, vmax=settings.THERMAL_TEMP_MAX
+        )
         plt.fill(
             polygon_np[:, 0],
             polygon_np[:, 1],
@@ -71,7 +74,9 @@ def run_matching_single(tag: str) -> None:
         plt.subplot(2, 1, 2)
         plt.title("Thermal image")
         # plt.imshow(thermal_uint8)
-        plt.imshow(thermal_image, vmin=0, vmax=50)
+        plt.imshow(
+            thermal_image, vmin=settings.THERMAL_TEMP_MIN, vmax=settings.THERMAL_TEMP_MAX
+        )
         plt.fill(
             warped_polygon_np[:, 0],
             warped_polygon_np[:, 1],
