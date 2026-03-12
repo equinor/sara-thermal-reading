@@ -2,18 +2,13 @@ import logging
 
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from sara_thermal_reading.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-from sara_thermal_reading.file_io.blob import BlobStorageLocation
-from sara_thermal_reading.file_io.file_utils import (
-    check_reference_blob_exists,
-    download_anonymized_fff_image,
-    load_reference_fff_image_and_polygon,
-    upload_to_visualized,
-)
+from sara_thermal_reading.file_io.blob import BlobStore
 from sara_thermal_reading.image_alignment.align_two_images_orb_bf_cv2 import (
     align_two_images_orb_bf_cv2,
 )
@@ -26,6 +21,25 @@ from sara_thermal_reading.image_processing.find_temperature_in_polygon import (
 from sara_thermal_reading.visualization.create_annotated_thermal_visualization import (
     create_annotated_thermal_visualization,
 )
+
+
+class BlobStorageLocation(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    blob_container: str = Field(..., alias="blobContainer")
+    blob_name: str = Field(..., alias="blobName")
+
+    @field_validator("blob_container")
+    def validate_blob_container(cls, v: str) -> str:
+        if not v:
+            raise ValueError("blobContainer cannot be empty")
+        return v
+
+    @field_validator("blob_name")
+    def validate_blob_name(cls, v: str) -> str:
+        if not v:
+            raise ValueError("blobName cannot be empty")
+        return v
 
 
 def process_thermal_image_fff(
@@ -76,32 +90,63 @@ def run_thermal_reading_fff_workflow(
 
     logger.info(f"Starting run thermal reading fff workflow")
 
-    if not check_reference_blob_exists(
-        tag_id, inspection_description, installation_code
-    ):
+    logger.info(f"Loading reference image and polygon")
+    reference_blob_store = BlobStore(
+        installation_code=installation_code,
+        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
+    )
+    reference_image_fff_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+    )
+    if not reference_blob_store.check_if_exists(reference_image_fff_blob_name):
         logger.error(
-            f"Expecting reference image to exist on storage account {installation_code} for tagId {tag_id} and inspectionDescription {inspection_description}"
+            f"Reference fff image does not exist on  {installation_code=} with name {reference_image_fff_blob_name=}"
         )
         return
-
-    logger.info(f"Loading reference image and polygon")
-    reference_image, reference_polygon = load_reference_fff_image_and_polygon(
-        installation_code, tag_id, inspection_description
+    reference_image_fff: np.ndarray = reference_blob_store.download_fff(
+        reference_image_fff_blob_name
     )
+    reference_polygon_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+    )
+    if not reference_blob_store.check_if_exists(reference_polygon_blob_name):
+        logger.error(
+            f"Reference polygon does not exist on  {installation_code=} with name {reference_polygon_blob_name=}"
+        )
+        return
+    reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
+        reference_polygon_blob_name
+    )
+    logger.info(f"Downloaded reference image and polygon")
 
-    logger.info(f"Loading source polygon")
-    source_image_array = download_anonymized_fff_image(anonymized_blob_storage_location)
+    logger.info(f"Downloading thermal FFF image from anonymized")
+    anonymized_blob_store = BlobStore(
+        installation_code=anonymized_blob_storage_location.blob_container,
+        connection_string=settings.SOURCE_STORAGE_CONNECTION_STRING,
+    )
+    source_image_fff: np.ndarray = anonymized_blob_store.download_fff(
+        blob_name=anonymized_blob_storage_location.blob_name
+    )
+    logger.info(
+        f"Downloaded FFF image from source storage account, shape: {source_image_fff.shape}"
+    )
 
     logger.info(f"Processing thermal fff image")
     temperature, annotated_image, _, _ = process_thermal_image_fff(
-        reference_image, source_image_array, reference_polygon
+        reference_image_fff, source_image_fff, reference_polygon
     )
-
     logger.info(f"Created annotated thermal visualization")
+
     logger.info("Uploading to visualized")
-    upload_to_visualized(
-        visualized_blob_storage_location,
-        annotated_image,
+    visualized_blob_store = BlobStore(
+        installation_code=visualized_blob_storage_location.blob_container,
+        connection_string=settings.DESTINATION_STORAGE_CONNECTION_STRING,
+    )
+    visualized_blob_store.upload_jpg(
+        annotated_image, blob_name=visualized_blob_storage_location.blob_name
+    )
+    logger.info(
+        f"Uploaded annotated thermal image to visualized storage account: {visualized_blob_storage_location.blob_container}/{visualized_blob_storage_location.blob_name}"
     )
 
     with open(temperature_output_file, "w") as file:
