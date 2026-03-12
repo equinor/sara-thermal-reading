@@ -5,19 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import requests
 import typer
-from azure.storage.blob import BlobServiceClient
 
 from sara_thermal_reading.config.settings import settings
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
-    create_cloud_reference_polygon,
     create_reference_polygon,
-    show_cloud_reference_polygon,
 )
 from sara_thermal_reading.dev_utils.run_fff_workflow_local_files import (
     run_fff_workflow_local_files,
 )
-from sara_thermal_reading.file_io.fff_loader import load_fff_from_bytes
-from sara_thermal_reading.file_io.file_utils import load_reference_fff_image_and_polygon
+from sara_thermal_reading.file_io.blob import BlobStore
 from sara_thermal_reading.visualization.plotting import (
     plot_fff_from_path,
     plot_thermal_image,
@@ -65,70 +61,99 @@ def plot_current_reference_image_and_polygon(
     tag_id: str = typer.Option(..., help="Tag ID"),
     inspection_description: str = typer.Option(..., help="Inspection description"),
 ) -> None:
-    image, polygon_points = load_reference_fff_image_and_polygon(
-        installation_code, tag_id, inspection_description
+    reference_blob_store = BlobStore(
+        installation_code=installation_code,
+        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
+    )
+    reference_image_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+    )
+    reference_image_fff: np.ndarray = reference_blob_store.download_fff(
+        reference_image_blob_name
+    )
+    reference_polygon_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+    )
+    reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
+        reference_polygon_blob_name
     )
 
     plot_thermal_image(
-        image,
+        reference_image_fff,
         f"Reference Image: {installation_code}/{tag_id}_{inspection_description}",
-        polygon_points,
+        reference_polygon,
     )
     plt.show()
 
 
 @app.command()
-def create_polygon(
-    fff_image_path: Path = typer.Argument(
-        ..., help="Path to the thermal image (FFF file)"
-    ),
-    polygon_json_output_path: Path = typer.Option(
-        Path("reference_polygon.json"), help="Path to save the polygon JSON"
-    ),
-) -> None:
-    create_reference_polygon(fff_image_path, polygon_json_output_path)
-
-
-@app.command()
 def create_polygon_cloud(
-    storage_account: str = typer.Argument(..., help="Storage account name"),
-    tag: str = typer.Argument(..., help="Tag"),
-    desc: str = typer.Argument(..., help="Inspection description"),
+    tag_id: str = typer.Option(..., help="Tag"),
+    inspection_description: str = typer.Option(..., help="Inspection description"),
 ) -> None:
-    create_cloud_reference_polygon(
-        storage_account,
-        tag,
-        desc,
+    reference_blob_store = BlobStore(
+        installation_code="kaa",
+        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
+    )
+    reference_image_fff_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+    )
+    reference_image_fff: np.ndarray = reference_blob_store.download_fff(
+        reference_image_fff_blob_name
+    )
+    reference_polygon_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+    )
+    reference_polygon: list[tuple[int, int]] | None
+    if reference_blob_store.check_if_exists(reference_polygon_blob_name):
+        reference_polygon = reference_blob_store.download_polygon(
+            reference_polygon_blob_name
+        )
+    else:
+        reference_polygon = None
+    reference_image_jpg_blob_name = (
+        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_JPG_FILENAME}"
+    )
+    reference_image_jpg: np.ndarray | None
+    if reference_blob_store.check_if_exists(reference_image_jpg_blob_name):
+        reference_image_jpg = reference_blob_store.download_image_array(
+            reference_image_jpg_blob_name
+        )
+    else:
+        reference_image_jpg = None
+
+    polygon: list[tuple[int, int]] | None = create_reference_polygon(
+        ref_image_fff=reference_image_fff,
+        ref_image_jpg=reference_image_jpg,
+        ref_polygon=reference_polygon,
     )
 
+    if polygon is not None:
+        reference_blob_store.upload_polygon(polygon, reference_polygon_blob_name)
 
-@app.command()
-def show_polygon_cloud(
-    storage_account: str = typer.Argument(..., help="Storage account name"),
-    tag: str = typer.Argument(..., help="Tag"),
-    desc: str = typer.Argument(..., help="Inspection description"),
+
+def plt_polygon(
+    polygon: list[tuple[int, int]],
 ) -> None:
-    show_cloud_reference_polygon(
-        storage_account,
-        tag,
-        desc,
-    )
+    x_coordinates = [point[0] for point in polygon]
+    y_coordinates = [point[1] for point in polygon]
+    plt.fill(x_coordinates, y_coordinates, edgecolor="r", fill=False, linewidth=1)
 
 
 @app.command()
 def view_all_thermal_from_blobs() -> None:
-    blob_service_client = BlobServiceClient.from_connection_string(
-        settings.SOURCE_STORAGE_CONNECTION_STRING
+    source_blob_store = BlobStore(
+        installation_code="kaa",
+        connection_string=settings.SOURCE_STORAGE_CONNECTION_STRING,
     )
-    container_client = blob_service_client.get_container_client("kaa")
-    all_blobs_iterator = container_client.list_blobs()
-    all_fff_blobs = [blob for blob in all_blobs_iterator if blob.name.endswith(".fff")]
+    all_blob_names: list[str] = source_blob_store.list_blobs_by_prefix(prefix="")
+    all_fff_blob_names: list[str] = [
+        name for name in all_blob_names if name.endswith(".fff")
+    ]
 
-    for fff_blob in all_fff_blobs:
-        blob_client = container_client.get_blob_client(fff_blob.name)
-        fff_bytes = blob_client.download_blob().readall()
-        fff_image = load_fff_from_bytes(fff_bytes)
-        time_str = blob_client.blob_name.split("__")[-1].replace(".fff", "")
+    for fff_blob_name in all_fff_blob_names:
+        image_fff = source_blob_store.download_fff(fff_blob_name)
+        time_str = fff_blob_name.split("__")[-1].replace(".fff", "")
         time_datetime = datetime.strptime(time_str, "%Y%m%d-%H%M%S")
 
         year, month, day, hour = (
@@ -142,7 +167,7 @@ def view_all_thermal_from_blobs() -> None:
         ambient_temp_from_api = response.json()["data"][0]["observations"][0]["value"]
         print(f"Ambient temperature from API: {ambient_temp_from_api:.2f} °C")
 
-        ambient_temp_in_image = np.median(fff_image)
+        ambient_temp_in_image = np.median(image_fff)
         print(f"Ambient temperature measured in image: {ambient_temp_in_image:.2f} °C")
 
         plt.figure()
@@ -154,12 +179,12 @@ def view_all_thermal_from_blobs() -> None:
             left=0.1, bottom=0.1, right=0.9, top=1, wspace=None, hspace=None
         )
         plt.subplot(2, 1, 1)
-        plt.imshow(fff_image, cmap="jet")
+        plt.imshow(image_fff, cmap="jet")
         plt.axis("off")
         plt.colorbar(label="Temperature (°C)")
         plt.subplot(2, 1, 2)
         plt.hist(
-            fff_image.flatten(),
+            image_fff.flatten(),
             bins=100,
             range=(ambient_temp_in_image - 5, ambient_temp_in_image + 5),
         )
@@ -186,7 +211,7 @@ def view_all_thermal_from_blobs() -> None:
         data_rgb = data_rgba[:, :, :3]
 
         plt.imsave(
-            f"./results/{fff_blob.name.replace('/', '_').replace('.fff', '')}_visualization.png",
+            f"./results/{fff_blob_name.replace('/', '_').replace('.fff', '')}_visualization.png",
             data_rgb,
         )
     pass

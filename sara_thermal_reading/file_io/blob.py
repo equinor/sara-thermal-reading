@@ -1,116 +1,113 @@
+import json
 import logging
-import os
 from io import BytesIO
-from pathlib import Path
+from typing import List
 
 import numpy as np
-from azure.storage.blob import BlobServiceClient, ContentSettings
+from azure.storage.blob import BlobServiceClient, ContainerClient, ContentSettings
 from numpy.typing import NDArray
-from PIL import Image
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from PIL import Image, ImageFile
+
+from sara_thermal_reading.file_io.fff_loader import load_fff_from_bytes
 
 logger = logging.getLogger(__name__)
 
 
-class BlobStorageLocation(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    blob_container: str = Field(..., alias="blobContainer")
-    blob_name: str = Field(..., alias="blobName")
-
-    @field_validator("blob_container")
-    def validate_blob_container(cls, v: str) -> str:
-        if not v:
-            raise ValueError("blobContainer cannot be empty")
-        return v
-
-    @field_validator("blob_name")
-    def validate_blob_name(cls, v: str) -> str:
-        if not v:
-            raise ValueError("blobName cannot be empty")
-        return v
-
-
-def download_blob_to_bytes(
-    blob_service_client: BlobServiceClient, blob_storage_location: BlobStorageLocation
-) -> bytes:
-    blob_client = blob_service_client.get_blob_client(
-        container=blob_storage_location.blob_container,
-        blob=blob_storage_location.blob_name,
-    )
-    return blob_client.download_blob().readall()
-
-
-def download_blob_to_image(
-    blob_service_client: BlobServiceClient, blob_storage_location: BlobStorageLocation
-) -> NDArray[np.uint8]:
-    blob_data = download_blob_to_bytes(blob_service_client, blob_storage_location)
-    image = Image.open(BytesIO(blob_data))
-    return np.array(image)
-
-
-def download_blob_to_json(
-    blob_service_client: BlobServiceClient,
-    blob_storage_location: BlobStorageLocation,
-) -> str:
-    blob_data = download_blob_to_bytes(blob_service_client, blob_storage_location)
-    return blob_data.decode("utf-8")
-
-
-def upload_bytes_to_blob(
-    blob_service_client: BlobServiceClient,
-    blob_storage_location: BlobStorageLocation,
-    data: BytesIO,
-    content_type: str = "application/octet-stream",
-) -> None:
-    try:
-        blob_client = blob_service_client.get_blob_client(
-            container=blob_storage_location.blob_container,
-            blob=blob_storage_location.blob_name,
+class BlobStore:
+    def __init__(self, installation_code: str, connection_string: str) -> None:
+        blob_service_client = BlobServiceClient.from_connection_string(
+            connection_string
         )
-        settings: ContentSettings = ContentSettings(content_type=content_type)  # type: ignore
-
-        blob_data = data.getvalue()
-        buffer_size = len(blob_data)
-        logger.debug(
-            f"Uploading {buffer_size} bytes to blob {blob_storage_location.blob_name}"
+        self.container_client: ContainerClient = (
+            blob_service_client.get_container_client(installation_code)
         )
 
-        blob_client.upload_blob(
-            blob_data,
-            overwrite=True,
-            content_settings=settings,
+    def list_blobs_by_prefix(self, prefix: str) -> List[str]:
+        """
+        This function can take some time
+        """
+        blob_list = self.container_client.list_blobs(name_starts_with=prefix)
+        blob_names: List[str] = [blob.name for blob in blob_list]
+        return blob_names
+
+    def check_if_exists(self, blob_name: str) -> bool:
+        blob_client = self.container_client.get_blob_client(
+            blob=blob_name,
+        )
+        is_existing: bool = blob_client.exists()
+        return is_existing
+
+    def download_bytes(self, blob_name: str) -> bytes:
+        blob_client = self.container_client.get_blob_client(
+            blob=blob_name,
+        )
+        blob: bytes = blob_client.download_blob().readall()
+        return blob
+
+    def download_image_array(self, blob_name: str) -> NDArray[np.uint8]:
+        blob: bytes = self.download_bytes(blob_name)
+        image: ImageFile.ImageFile = Image.open(BytesIO(blob))
+        image_array: np.ndarray = np.array(image)
+        return image_array
+
+    def download_polygon(self, blob_name: str) -> list[tuple[int, int]]:
+        blob: bytes = self.download_bytes(blob_name)
+        blob_json: str = blob.decode("utf-8")
+        polygon: list[tuple[int, int]] = json.loads(blob_json)
+        return polygon
+
+    def download_fff(self, blob_name: str) -> np.ndarray:
+        blob: bytes = self.download_bytes(blob_name)
+        image_fff: np.ndarray = load_fff_from_bytes(blob)
+        return image_fff
+
+    def upload_bytes(
+        self,
+        data: bytes,
+        blob_name: str,
+        content_type: str = "application/octet-stream",
+    ) -> None:
+        blob_client = self.container_client.get_blob_client(
+            blob=blob_name,
         )
 
-        logger.debug(f"Successfully uploaded blob {blob_storage_location.blob_name}")
-    except Exception as e:
-        logger.error(f"Failed to upload blob {blob_storage_location.blob_name}: {e}")
-        raise
+        buffer_size = len(data)
+        logger.debug(f"Uploading {buffer_size} bytes to blob {blob_name}")
+        settings: ContentSettings = ContentSettings(content_type=content_type)
 
+        try:
+            blob_client.upload_blob(
+                data,
+                overwrite=True,
+                content_settings=settings,
+            )
+            logger.debug(f"Successfully uploaded blob {blob_name}")
+        except Exception as e:
+            logger.error(f"Failed to upload blob {blob_name}: {e}")
+            raise
 
-def upload_image_to_blob(
-    blob_service_client: BlobServiceClient,
-    blob_storage_location: "BlobStorageLocation",
-    image: NDArray[np.uint8],
-) -> None:
+    def upload_jpg(self, image: np.ndarray, blob_name: str) -> None:
+        data_jpg: bytes = _np_image_to_jpg_bytes(image)
+        logger.debug(f"Uploading image to {blob_name}")
+        self.upload_bytes(data_jpg, blob_name, content_type="image/jpeg")
 
-    def ndarray_to_bytesio(arr: np.ndarray, format: str = "JPEG") -> BytesIO:
-
-        img = Image.fromarray(arr)
-
-        if img.mode == "RGBA" and format.upper() == "JPEG":
-            img = img.convert("RGB")
-
+    def upload_polygon(self, polygon: list[tuple[int, int]], blob_name: str) -> None:
+        polygon_json = json.dumps(polygon, indent=4)
         buf = BytesIO()
-        img.save(buf, format=format)
+        buf.write(polygon_json.encode("utf-8"))
         buf.seek(0)
-        return buf
+        data: bytes = buf.getvalue()
+        self.upload_bytes(data, blob_name, content_type="application/json")
 
-    logger.debug(f"Uploading image to {blob_storage_location.blob_name}")
 
-    upload_bytes_to_blob(
-        blob_service_client,
-        blob_storage_location,
-        ndarray_to_bytesio(image, format="JPEG"),
-        content_type="image/jpeg",
-    )
+def _np_image_to_jpg_bytes(array: np.ndarray) -> bytes:
+    img = Image.fromarray(array)
+
+    if img.mode == "RGBA":
+        img = img.convert("RGB")
+
+    buf = BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    data: bytes = buf.getvalue()
+    return data
