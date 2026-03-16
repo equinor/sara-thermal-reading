@@ -10,8 +10,8 @@ from sara_thermal_reading.config.settings import settings
 logger = logging.getLogger(__name__)
 
 from sara_thermal_reading.file_io.blob import BlobStore
-from sara_thermal_reading.image_alignment.align_two_images_orb_bf_cv2 import (
-    align_two_images_orb_bf_cv2,
+from sara_thermal_reading.image_alignment.align_two_images_translation_cv2 import (
+    align_two_images_translation_cv2,
 )
 from sara_thermal_reading.image_processing.convert_thermal_to_uint8 import (
     convert_thermal_to_uint8,
@@ -76,7 +76,7 @@ def process_thermal_image_fff(
     reference_image_uint8 = clahe.apply(reference_image_uint8).astype(np.uint8)
     source_image_uint8 = clahe.apply(source_image_uint8).astype(np.uint8)
 
-    warped_polygon_list, warped_reference_img = align_two_images_orb_bf_cv2(
+    warped_polygon_list, warped_reference_img = align_two_images_translation_cv2(
         reference_image_uint8,
         source_image_uint8,
         reference_polygon,
