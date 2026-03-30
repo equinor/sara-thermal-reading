@@ -24,7 +24,7 @@ def create_annotated_thermal_visualization(
         polygon_points,
         closed=True,
         fill=None,
-        edgecolor="gray",
+        edgecolor="lime",
         linewidth=2,
         label=f"Max temperature: {tempreature:.2f}°C",
     )

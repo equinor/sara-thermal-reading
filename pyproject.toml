@@ -25,6 +25,7 @@ dependencies = [
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp",
+    "mpl-point-clicker"
 ]
 
 [project.optional-dependencies]
@@ -34,7 +35,6 @@ dev = [
     "black",
     "isort",
     "flake8",
-    "mpl-point-clicker",
     "types-requests", # For Mypy
     "pip-system-certs", # To use system certificates for MET API
     "pip-tools" # To use pip-compile from readme
