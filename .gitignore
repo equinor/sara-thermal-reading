@@ -43,3 +43,4 @@ env.bak/
 venv.bak/
 
 .idea
+AGENTS.md
