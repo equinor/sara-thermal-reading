@@ -59,6 +59,7 @@ strict_optional = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+files = ["sara_thermal_reading", "utils_cli.py", "main.py"]
 
 [tool.isort]
 profile = "black"
