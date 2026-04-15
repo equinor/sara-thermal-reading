@@ -28,12 +28,13 @@ jobs:
   deploy:
     name: Update deployment in Staging
     needs: [build-and-push-release-to-production]
-    uses: ./.github/workflows/update_aurora_deployment.yml
+    uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
     with:
-      Environment: staging
-      Registry: auroraprodacr.azurecr.io
-      ImageName: robotics/sara-thermal-reading
-      Tag: ${{ github.event.release.tag_name }}
-      AuthorName: ${{ github.event.release.author.login }}
+      environment: staging
+      registry: auroraprodacr.azurecr.io
+      image_name: robotics/sara-thermal-reading
+      tag: ${{ github.event.release.tag_name }}
+      author_name: ${{ github.event.release.author.login }}
+      infrastructure_repository: equinor/analytics-infrastructure
     secrets:
-      DeployKey: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
+      deploy_key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
