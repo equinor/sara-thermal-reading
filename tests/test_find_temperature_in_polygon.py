@@ -7,9 +7,7 @@ from sara_thermal_reading.image_processing.find_temperature_in_polygon import (
 
 def test_find_temperature_in_polygon() -> None:
     thermal_image = np.full((100, 100), 20.0, dtype=np.float64)
-    polygon_points = np.array(
-        [[30, 30], [70, 30], [70, 70], [30, 70]], dtype=np.int32
-    )
+    polygon_points = np.array([[30, 30], [70, 30], [70, 70], [30, 70]], dtype=np.int32)
     thermal_image[40:70, 40:70] = 35.0
     # Set a high temperature point inside the polygon
     thermal_image[35, 35] = 100.0
