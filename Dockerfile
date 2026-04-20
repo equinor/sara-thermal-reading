@@ -1,5 +1,7 @@
 FROM python:3.13-slim
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     wget \
@@ -19,9 +21,9 @@ RUN chown -R appuser:appuser /app
 
 USER 1000
 
-COPY requirements.txt .
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY . .
 
