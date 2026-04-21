@@ -25,6 +25,10 @@ Both the image and polygon needs to be stored in a container named `installation
 
 Install with `uv sync --extra dev`
 
+### Run tests
+
+Run tests with `uv run pytest .`
+
 ### Example .env.example
 
 ```bash
