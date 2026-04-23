@@ -27,4 +27,6 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY . .
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 CMD ["python", "main.py"]
