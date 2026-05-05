@@ -44,3 +44,9 @@ venv.bak/
 
 .idea
 AGENTS.md
+# Testing / coverage
+.mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
