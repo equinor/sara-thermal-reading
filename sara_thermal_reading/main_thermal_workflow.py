@@ -102,40 +102,48 @@ def process_thermal_image(
 def run_thermal_reading_workflow(
     anonymized_blob_storage_location: BlobStorageLocation,
     visualized_blob_storage_location: BlobStorageLocation,
-    tag_id: str,
-    inspection_description: str,
-    installation_code: str,
+    reference_image_blob_storage_location: BlobStorageLocation,
+    reference_polygon_blob_storage_location: BlobStorageLocation,
     temperature_output_file: str,
 ) -> None:
 
     logger.info(f"Starting run thermal reading workflow")
 
     logger.info(f"Loading reference image and polygon")
-    reference_blob_store = BlobStore(
-        installation_code=installation_code,
+    reference_image_blob_store = BlobStore(
+        installation_code=reference_image_blob_storage_location.blob_container,
         connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
     )
-    reference_image_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_TIFF_FILENAME}"
-    )
-    if not reference_blob_store.check_if_exists(reference_image_blob_name):
+    if not reference_image_blob_store.check_if_exists(
+        reference_image_blob_storage_location.blob_name
+    ):
         logger.error(
-            f"Reference TIFF image does not exist on  {installation_code=} with name {reference_image_blob_name=}"
+            "Reference tiff image does not exist on %s/%s",
+            reference_image_blob_storage_location.blob_container,
+            reference_image_blob_storage_location.blob_name,
         )
         return
-    reference_image: np.ndarray = reference_blob_store.download_thermal_tiff(
-        reference_image_blob_name
+    reference_image: np.ndarray = reference_image_blob_store.download_thermal_tiff(
+        reference_image_blob_storage_location.blob_name
     )
-    reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+
+    reference_polygon_blob_store = BlobStore(
+        installation_code=reference_polygon_blob_storage_location.blob_container,
+        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
     )
-    if not reference_blob_store.check_if_exists(reference_polygon_blob_name):
+    if not reference_polygon_blob_store.check_if_exists(
+        reference_polygon_blob_storage_location.blob_name
+    ):
         logger.error(
-            f"Reference polygon does not exist on  {installation_code=} with name {reference_polygon_blob_name=}"
+            "Reference polygon does not exist on %s/%s",
+            reference_polygon_blob_storage_location.blob_container,
+            reference_polygon_blob_storage_location.blob_name,
         )
         return
-    reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
-        reference_polygon_blob_name
+    reference_polygon: list[tuple[int, int]] = (
+        reference_polygon_blob_store.download_polygon(
+            reference_polygon_blob_storage_location.blob_name
+        )
     )
     logger.info(f"Downloaded reference image and polygon")
 

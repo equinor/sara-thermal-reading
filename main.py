@@ -30,9 +30,12 @@ def run_thermal_reading(
     visualized_blob_storage_location: str = typer.Option(
         ..., help="JSON string for visualized data blob storage location"
     ),
-    tag_id: str = typer.Option(..., help="Tag ID"),
-    inspection_description: str = typer.Option(..., help="Inspection description"),
-    installation_code: str = typer.Option(..., help="Installation code"),
+    reference_image_blob_storage_location: str = typer.Option(
+        ..., help="JSON string for reference image blob storage location"
+    ),
+    reference_polygon_blob_storage_location: str = typer.Option(
+        ..., help="JSON string for reference polygon blob storage location"
+    ),
     temperature_output_file: str = typer.Option(
         "/tmp/temperature_output.txt", help="Temperature output file path"
     ),
@@ -43,6 +46,12 @@ def run_thermal_reading(
         )
         visualized_location = BlobStorageLocation.model_validate(
             json.loads(visualized_blob_storage_location)
+        )
+        reference_image_location = BlobStorageLocation.model_validate(
+            json.loads(reference_image_blob_storage_location)
+        )
+        reference_polygon_location = BlobStorageLocation.model_validate(
+            json.loads(reference_polygon_blob_storage_location)
         )
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON provided: {e}")
@@ -58,15 +67,18 @@ def run_thermal_reading(
             "src.blob": anonymized_location.blob_name,
             "dst.container": visualized_location.blob_container,
             "dst.blob": visualized_location.blob_name,
+            "reference.image.container": reference_image_location.blob_container,
+            "reference.image.blob": reference_image_location.blob_name,
+            "reference.polygon.container": reference_polygon_location.blob_container,
+            "reference.polygon.blob": reference_polygon_location.blob_name,
         },
     ) as span:
         try:
             run_thermal_reading_workflow(
                 anonymized_location,
                 visualized_location,
-                tag_id,
-                inspection_description,
-                installation_code,
+                reference_image_location,
+                reference_polygon_location,
                 temperature_output_file,
             )
         except Exception as e:
