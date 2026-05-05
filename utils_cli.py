@@ -22,6 +22,10 @@ from sara_thermal_reading.visualization.plotting import (
 
 app = typer.Typer()
 
+REFERENCE_IMAGE_FFF_FILENAME = "reference_image.fff"
+REFERENCE_IMAGE_JPG_FILENAME = "reference_image.jpeg"
+REFERENCE_POLYGON_FILENAME = "reference_polygon.json"
+
 
 @app.command()
 def run_fff_workflow(
@@ -73,7 +77,7 @@ def plot_current_reference_image_and_polygon(
         reference_image_blob_name
     )
     reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+        f"{tag_id}_{inspection_description}/{REFERENCE_POLYGON_FILENAME}"
     )
     reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
         reference_polygon_blob_name
@@ -171,7 +175,7 @@ def create_polygon_cloud(
         reference_image_blob_name
     )
     reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+        f"{tag_id}_{inspection_description}/{REFERENCE_POLYGON_FILENAME}"
     )
     reference_polygon: list[tuple[int, int]] | None
     if reference_blob_store.check_if_exists(reference_polygon_blob_name):
@@ -181,7 +185,7 @@ def create_polygon_cloud(
     else:
         reference_polygon = None
     reference_image_jpg_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_JPG_FILENAME}"
+        f"{tag_id}_{inspection_description}/{REFERENCE_IMAGE_JPG_FILENAME}"
     )
     reference_image_jpg: np.ndarray | None
     if reference_blob_store.check_if_exists(reference_image_jpg_blob_name):
@@ -318,7 +322,7 @@ def run_matching_single(
         reference_image_blob_name
     )
     reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+        f"{tag_id}_{inspection_description}/{REFERENCE_POLYGON_FILENAME}"
     )
     reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
         reference_polygon_blob_name
@@ -418,7 +422,7 @@ def run_matching_all(
         reference_image_blob_name
     )
     reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_POLYGON_FILENAME}"
+        f"{tag_id}_{inspection_description}/{REFERENCE_POLYGON_FILENAME}"
     )
     reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
         reference_polygon_blob_name
