@@ -88,6 +88,74 @@ def plot_current_reference_image_and_polygon(
 
 
 @app.command()
+def set_reference_fff_from_cloud(
+    tag_id: str = typer.Option(..., help="Tag"),
+    inspection_description: str = typer.Option(..., help="Inspection description"),
+) -> None:
+    source_blob_store = BlobStore(
+        installation_code="kaa",
+        connection_string=settings.SOURCE_STORAGE_CONNECTION_STRING,
+    )
+    all_blob_names: list[str] = source_blob_store.list_blobs_by_prefix(prefix="")
+    all_fff_blob_names: list[str] = [
+        name
+        for name in all_blob_names
+        if name.endswith(".fff")
+        and tag_id in name
+        and inspection_description.replace(" ", "-") in name
+    ]
+    all_blob_times_str: list[str] = [
+        fff_blob_name.split("__")[-1].replace(".fff", "")
+        for fff_blob_name in all_fff_blob_names
+    ]
+    indices = np.argsort(all_blob_times_str)[
+        ::-1
+    ]  # Sort in descending order to get the most recent first
+    all_fff_blob_names_np: np.ndarray = np.array(all_fff_blob_names)[indices]
+
+    for fff_blob_name in all_fff_blob_names_np:
+        image_fff = source_blob_store.download_fff(fff_blob_name)
+
+        plt.ion()
+        plt.figure("Set as reference image?")
+        plt.clf()
+        fig = plt.gcf()
+        fig.set_figwidth(15)
+        fig.set_figheight(9)
+        plt.subplots_adjust(
+            left=0.01, bottom=0.01, right=0.99, top=0.99, wspace=None, hspace=None
+        )
+        plt.imshow(image_fff, cmap="jet")
+        plt.axis("off")
+        plt.colorbar(label="Temperature (°C)")
+        plt.show()
+
+        print()
+        print(f"Showing {fff_blob_name}.")
+        print(f"Do you want to set this as the new reference? (y/n)")
+        while True:
+            user_input = input().lower()
+            if user_input in ["y", "n"]:
+                break
+            else:
+                print("Invalid input. Please enter 'y' or 'n'.")
+        if user_input == "y":
+            image_fff_bytes: bytes = source_blob_store.download_bytes(fff_blob_name)
+            reference_blob_store = BlobStore(
+                installation_code="kaa",
+                connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
+            )
+            reference_image_blob_name = f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+            reference_blob_store.upload_bytes(
+                image_fff_bytes, reference_image_blob_name
+            )
+            print(f"Uploaded {reference_image_blob_name} to reference storage.")
+            break
+        else:
+            print("Trying the next most recent image...")
+
+
+@app.command()
 def create_polygon_cloud(
     tag_id: str = typer.Option(..., help="Tag"),
     inspection_description: str = typer.Option(..., help="Inspection description"),
@@ -123,6 +191,8 @@ def create_polygon_cloud(
     else:
         reference_image_jpg = None
 
+    print("You should now create the polygon. ")
+    print("If the polygon is empty, there will not be stored a reference polygon. ")
     polygon: list[tuple[int, int]] | None = create_reference_polygon(
         ref_image_fff=reference_image_fff,
         ref_image_jpg=reference_image_jpg,
@@ -131,6 +201,8 @@ def create_polygon_cloud(
 
     if polygon is not None:
         reference_blob_store.upload_polygon(polygon, reference_polygon_blob_name)
+
+        print(f"Polygon uploaded to blob storage at {reference_polygon_blob_name}. ")
 
 
 def plt_polygon(
