@@ -14,6 +14,10 @@ def create_reference_polygon(
     ref_polygon: list[tuple[int, int]] | None,
 ) -> list[tuple[int, int]] | None:
 
+    print("Please click to create a polygon")
+    print("Click at least 3 points, then close the window")
+    print("Right click to remove the last point")
+
     fig = plt.figure()
 
     if ref_image_jpg is None:
@@ -42,6 +46,8 @@ def create_reference_polygon(
 
     def on_click(event: Any) -> None:
         points = klicker.get_positions()["image"]
+        if points.size == 0:
+            points = np.zeros((0, 2))
         patch.set_xy(points)
         fig.canvas.draw()
 
