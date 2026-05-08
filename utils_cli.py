@@ -114,7 +114,7 @@ def set_reference_fff_from_cloud(
     all_fff_blob_names_np: np.ndarray = np.array(all_fff_blob_names)[indices]
 
     for fff_blob_name in all_fff_blob_names_np:
-        image_fff = source_blob_store.download_fff(fff_blob_name)
+        image_fff = source_blob_store.download_thermal_tiff(fff_blob_name)
 
         plt.ion()
         plt.figure("Set as reference image?")
@@ -145,7 +145,7 @@ def set_reference_fff_from_cloud(
                 installation_code="kaa",
                 connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
             )
-            reference_image_blob_name = f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_FFF_FILENAME}"
+            reference_image_blob_name = f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_TIFF_FILENAME}"
             reference_blob_store.upload_bytes(
                 image_fff_bytes, reference_image_blob_name
             )
