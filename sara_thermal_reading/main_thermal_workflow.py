@@ -83,12 +83,19 @@ def process_thermal_image(
     )
     warped_polygon_array = np.array(warped_polygon_list)
 
-    temperature = find_temperature_in_polygon(source_image_array, warped_polygon_array)
+    temperature = find_temperature_in_polygon(
+        source_image_array, warped_polygon_array, settings.TEMPERATURE_PERCENTILE
+    )
 
-    logger.info(f"Temperature inside the polygon: {temperature}.")
+    logger.info(
+        f"Temperature inside the polygon (P{settings.TEMPERATURE_PERCENTILE:g}): {temperature}."
+    )
 
     annotated_image = create_annotated_thermal_visualization(
-        source_image_array, warped_polygon_array, temperature
+        source_image_array,
+        warped_polygon_array,
+        temperature,
+        settings.TEMPERATURE_PERCENTILE,
     )
 
     return (

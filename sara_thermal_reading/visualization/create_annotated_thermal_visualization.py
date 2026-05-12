@@ -10,6 +10,7 @@ def create_annotated_thermal_visualization(
     aligned_image: NDArray[np.float64],
     polygon_points: NDArray[np.float32],
     tempreature: float,
+    percentile: float = 100.0,
 ) -> NDArray[np.uint8]:
 
     plt.figure()
@@ -26,7 +27,7 @@ def create_annotated_thermal_visualization(
         fill=None,
         edgecolor="lime",
         linewidth=2,
-        label=f"Max temperature: {tempreature:.2f}°C",
+        label=f"P{percentile:g} temperature: {tempreature:.2f}°C",
     )
     ax.add_patch(patch)
     ax.legend(handles=[patch])
