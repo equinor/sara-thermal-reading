@@ -61,5 +61,8 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 files = ["sara_thermal_reading", "utils_cli.py", "main.py"]
 
+[tool.uv]
+exclude-newer = "P5D"
+
 [tool.isort]
 profile = "black"
