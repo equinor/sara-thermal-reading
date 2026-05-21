@@ -59,8 +59,12 @@ def run_thermal_reading(
             "'referencePolygonBlobStorageLocation'."
         ),
     ),
-    temperature_output_file: str = typer.Option(
-        "/tmp/temperature_output.txt", help="Temperature output file path"
+    result_output_file: str = typer.Option(
+        "/tmp/result.json",
+        help=(
+            "Path to write the workflow result JSON to. The file is created "
+            "after the workflow succeeds and contains 'temperature' (float)."
+        ),
     ),
 ) -> None:
     anonymized_location = parse_input_blob_storage_locations(
@@ -92,7 +96,7 @@ def run_thermal_reading(
                 visualized_location,
                 reference_image_location,
                 reference_polygon_location,
-                temperature_output_file,
+                result_output_file,
             )
         except Exception as e:
             span.record_exception(e)

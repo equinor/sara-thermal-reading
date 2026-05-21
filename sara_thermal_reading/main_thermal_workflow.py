@@ -1,3 +1,4 @@
+import json
 import logging
 
 import cv2
@@ -98,7 +99,7 @@ def run_thermal_reading_workflow(
     visualized_blob_storage_location: BlobStorageLocation,
     reference_image_blob_storage_location: BlobStorageLocation,
     reference_polygon_blob_storage_location: BlobStorageLocation,
-    temperature_output_file: str,
+    result_output_file: str,
 ) -> None:
 
     logger.info(f"Starting run thermal reading workflow")
@@ -171,6 +172,6 @@ def run_thermal_reading_workflow(
         f"Uploaded annotated thermal image to visualized storage account: {visualized_blob_storage_location.blob_container}/{visualized_blob_storage_location.blob_name}"
     )
 
-    with open(temperature_output_file, "w") as file:
-        file.write(str(temperature))
-        logger.info(f"Temperature: {temperature} written to {temperature_output_file}")
+    with open(result_output_file, "w") as file:
+        json.dump({"temperature": float(temperature)}, file)
+        logger.info(f"Temperature: {temperature} written to {result_output_file}")
