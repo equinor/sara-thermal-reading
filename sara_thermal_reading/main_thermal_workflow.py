@@ -40,6 +40,7 @@ def process_thermal_image(
     NDArray[np.uint8],
     list[tuple[int, int]],
     NDArray[np.uint8],
+    float,
 ]:
 
     # Normalize both images to their shared (overlapping) temperature range so
@@ -64,10 +65,12 @@ def process_thermal_image(
     reference_image_uint8 = clahe.apply(reference_image_uint8).astype(np.uint8)
     source_image_uint8 = clahe.apply(source_image_uint8).astype(np.uint8)
 
-    warped_polygon_list, warped_reference_img = align_two_images_translation_cv2(
-        reference_image_uint8,
-        source_image_uint8,
-        reference_polygon,
+    warped_polygon_list, warped_reference_img, alignment_score = (
+        align_two_images_translation_cv2(
+            reference_image_uint8,
+            source_image_uint8,
+            reference_polygon,
+        )
     )
     warped_polygon_array = np.array(warped_polygon_list)
 
@@ -91,6 +94,7 @@ def process_thermal_image(
         annotated_image,
         warped_polygon_list,
         warped_reference_img,
+        alignment_score,
     )
 
 
@@ -155,7 +159,7 @@ def run_thermal_reading_workflow(
     )
 
     logger.info(f"Processing thermal image")
-    temperature, annotated_image, _, _ = process_thermal_image(
+    temperature, annotated_image, _, _, _ = process_thermal_image(
         reference_image, source_image, reference_polygon
     )
     logger.info(f"Created annotated thermal visualization")

@@ -22,6 +22,22 @@ class BlobStore:
             blob_service_client.get_container_client(installation_code)
         )
 
+    @classmethod
+    def from_account_name(
+        cls, installation_code: str, account_name: str
+    ) -> "BlobStore":
+        """Create a BlobStore using DefaultAzureCredential (az login)."""
+        from azure.identity import DefaultAzureCredential
+
+        credential = DefaultAzureCredential()
+        account_url = f"https://{account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(account_url, credential=credential)
+        instance = cls.__new__(cls)
+        instance.container_client = blob_service_client.get_container_client(
+            installation_code
+        )
+        return instance
+
     def list_blobs_by_prefix(self, prefix: str) -> List[str]:
         """
         This function can take some time
