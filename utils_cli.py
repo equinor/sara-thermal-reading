@@ -7,6 +7,10 @@ import requests
 import typer
 
 from sara_thermal_reading.config.settings import settings
+from sara_thermal_reading.dev_utils.benchmark_alignment import (
+    generate_benchmark_plots,
+    run_benchmark_alignment,
+)
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
     create_reference_polygon,
 )
@@ -328,9 +332,13 @@ def run_matching_single(
         reference_polygon_blob_name
     )
 
-    temperature, annotated_image, warped_polygon_list, warped_reference_img = (
-        process_thermal_image(reference_image, source_image, reference_polygon)
-    )
+    (
+        temperature,
+        annotated_image,
+        warped_polygon_list,
+        warped_reference_img,
+        _alignment_score,
+    ) = process_thermal_image(reference_image, source_image, reference_polygon)
 
     plot_matching(
         reference_image=reference_image,
@@ -432,7 +440,7 @@ def run_matching_all(
         print(f"Processing: {blob_name}")
         source_image: np.ndarray = source_blob_store.download_thermal_tiff(blob_name)
 
-        temperature, annotated_image, warped_polygon_list, _ = process_thermal_image(
+        temperature, annotated_image, warped_polygon_list, _, _ = process_thermal_image(
             reference_image, source_image, reference_polygon
         )
 
@@ -442,6 +450,46 @@ def run_matching_all(
             reference_polygon=reference_polygon,
             warped_polygon_list=warped_polygon_list,
         )
+
+
+@app.command()
+def benchmark_alignment(
+    csv_path: str = typer.Option(
+        ..., help="Path to file with blob folder paths (one per line)"
+    ),
+    src_st_acc: str = typer.Option(..., help="Source storage account name"),
+    ref_st_acc: str = typer.Option(..., help="Reference storage account name"),
+    installation_code: str = typer.Option(
+        ..., help="Installation code (container name)"
+    ),
+    results_path: str = typer.Option(
+        "benchmark_results.json", help="Path to save results JSON"
+    ),
+) -> None:
+    """Interactively evaluate image alignment quality and save verdicts to JSON."""
+    run_benchmark_alignment(
+        csv_path, src_st_acc, ref_st_acc, installation_code, results_path
+    )
+
+
+@app.command()
+def benchmark_plot(
+    results_path: str = typer.Option(
+        "benchmark_results.json", help="Path to results JSON from benchmark-alignment"
+    ),
+    output_path: str = typer.Option(
+        "benchmark_result.png", help="Path to save pie chart"
+    ),
+    line_plot_path: str = typer.Option(
+        "benchmark_threshold_sweep.png", help="Path to save threshold sweep line plot"
+    ),
+    threshold: float = typer.Option(
+        None,
+        help="Alignment score threshold (defaults to MIN_ALIGNMENT_SCORE from settings)",
+    ),
+) -> None:
+    """Generate a pie chart and threshold sweep plot from benchmark results."""
+    generate_benchmark_plots(results_path, output_path, line_plot_path, threshold)
 
 
 if __name__ == "__main__":

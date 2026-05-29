@@ -11,7 +11,7 @@ def align_two_images_translation_cv2(
     reference_image: NDArray[np.uint8],
     source_image: NDArray[np.uint8],
     roi_polygon: list[tuple[int, int]],
-) -> tuple[list[tuple[int, int]], NDArray[np.uint8]]:
+) -> tuple[list[tuple[int, int]], NDArray[np.uint8], float]:
     """
     Align reference image to source image using translation only, and
     transform the polygon accordingly.
@@ -29,6 +29,7 @@ def align_two_images_translation_cv2(
         tuple: (translated_polygon, translated_reference_image)
         translated_polygon: Polygon shifted to source image coordinates
         translated_reference_image: Reference image shifted to match source image
+        alignment_score: Phase correlation response (confidence of the match)
     """
     # Phase correlation requires float32 images
     reference_float = reference_image.astype(np.float32)
@@ -62,4 +63,4 @@ def align_two_images_translation_cv2(
         (int(round(x + dx)), int(round(y + dy))) for x, y in roi_polygon
     ]
 
-    return translated_polygon, translated_reference_image
+    return translated_polygon, translated_reference_image, response
