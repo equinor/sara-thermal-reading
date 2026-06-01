@@ -1,9 +1,11 @@
+import json
 from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import requests
+import tifffile
 import typer
 
 from sara_thermal_reading.config.settings import settings
@@ -202,7 +204,7 @@ def create_polygon_cloud(
     print("You should now create the polygon. ")
     print("If the polygon is empty, there will not be stored a reference polygon. ")
     polygon: list[tuple[int, int]] | None = create_reference_polygon(
-        ref_image_fff=reference_image,
+        ref_image=reference_image,
         ref_image_jpg=reference_image_jpg,
         ref_polygon=reference_polygon,
     )
@@ -211,6 +213,34 @@ def create_polygon_cloud(
         reference_blob_store.upload_polygon(polygon, reference_polygon_blob_name)
 
         print(f"Polygon uploaded to blob storage at {reference_polygon_blob_name}. ")
+
+
+@app.command()
+def create_polygon_local(
+    image_path: Path = typer.Option(..., help="Path to local thermal TIFF image"),
+    output_path: Path = typer.Option(..., help="Path to save the polygon JSON file"),
+) -> None:
+    """Create a reference polygon by clicking on a local thermal TIFF image."""
+    image: np.ndarray = tifffile.imread(image_path)
+
+    existing_polygon: list[tuple[int, int]] | None = None
+    if output_path.exists():
+        with open(output_path) as f:
+            existing_polygon = [tuple(p) for p in json.load(f)]
+
+    polygon = create_reference_polygon(
+        ref_image=image,
+        ref_image_jpg=None,
+        ref_polygon=existing_polygon,
+    )
+
+    if polygon is not None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(polygon, f)
+        print(f"Polygon saved to {output_path}")
+    else:
+        print("No polygon created (less than 3 points).")
 
 
 def plt_polygon(

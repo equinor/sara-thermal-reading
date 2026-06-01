@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_reference_polygon(
-    ref_image_fff: np.ndarray,
+    ref_image: np.ndarray,
     ref_image_jpg: np.ndarray | None,
     ref_polygon: list[tuple[int, int]] | None,
 ) -> list[tuple[int, int]] | None:
@@ -21,12 +21,12 @@ def create_reference_polygon(
     fig = plt.figure()
 
     if ref_image_jpg is None:
-        plt.imshow(ref_image_fff, cmap="jet")
+        plt.imshow(ref_image, cmap="jet")
     else:
         plt.subplot(1, 2, 1)
         plt.imshow(ref_image_jpg, cmap="jet")
         plt.subplot(1, 2, 2)
-        plt.imshow(ref_image_fff, cmap="jet")
+        plt.imshow(ref_image, cmap="jet")
 
     ax = plt.gca()
 
