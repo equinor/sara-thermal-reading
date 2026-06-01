@@ -5,5 +5,5 @@ format:
 
 run-example:
 	uv run utils_cli.py run-fff-workflow \
-		--polygon-path example-data/polygon.json \
-		--reference-image-path example-data/thermal_image.tiff
+		--polygon-path example-data/asset-example/polygon.json \
+		--reference-image-path example-data/asset-example/thermal_image.tiff
