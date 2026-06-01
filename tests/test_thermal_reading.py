@@ -8,6 +8,12 @@ import pytest
 import tifffile
 from numpy.typing import NDArray
 
+from sara_thermal_reading.image_alignment.align_two_images_translation_cv2 import (
+    align_two_images_translation_cv2,
+)
+from sara_thermal_reading.image_processing.convert_thermal_to_uint8 import (
+    convert_thermal_to_uint8,
+)
 from sara_thermal_reading.main_thermal_workflow import process_thermal_image
 
 EXAMPLE_DATA = Path(__file__).parent.parent / "example-data"
@@ -102,3 +108,46 @@ def test_alignment_fireplace_example(tx: int, ty: int) -> None:
         f"Max point distance {distance:.1f}px exceeds {MAX_PIXEL_TOLERANCE}px "
         f"for translation ({tx}, {ty})"
     )
+
+
+def test_translation_zero_shift() -> None:
+    """Identical images should produce an unchanged polygon and a high alignment score."""
+    reference_image, polygon = _load_example("asset-example")
+    ref_uint8 = convert_thermal_to_uint8(reference_image)
+
+    warped_polygon, _warped_img, score = align_two_images_translation_cv2(
+        ref_uint8, ref_uint8, polygon
+    )
+
+    distance = _max_point_distance(polygon, warped_polygon)
+    assert distance < 1.0, f"Zero-shift distance should be ~0, got {distance:.1f}px"
+    assert score > 0.5, f"Identical images should have high score, got {score:.3f}"
+
+
+def test_translation_returns_valid_score() -> None:
+    """Alignment score should be a float between 0 and 1."""
+    reference_image, polygon = _load_example("asset-example")
+    source_image = _translate_image(reference_image, 10, 10)
+    ref_uint8 = convert_thermal_to_uint8(reference_image)
+    src_uint8 = convert_thermal_to_uint8(source_image)
+
+    _warped_polygon, _warped_img, score = align_two_images_translation_cv2(
+        ref_uint8, src_uint8, polygon
+    )
+
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0
+
+
+def test_translation_polygon_point_count_preserved() -> None:
+    """Output polygon should have the same number of points as the input."""
+    reference_image, polygon = _load_example("fireplace-example")
+    source_image = _translate_image(reference_image, 20, 15)
+    ref_uint8 = convert_thermal_to_uint8(reference_image)
+    src_uint8 = convert_thermal_to_uint8(source_image)
+
+    warped_polygon, _warped_img, _score = align_two_images_translation_cv2(
+        ref_uint8, src_uint8, polygon
+    )
+
+    assert len(warped_polygon) == len(polygon)
