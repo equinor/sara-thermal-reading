@@ -39,15 +39,17 @@ def align_two_images_translation_cv2(
     hann = cv2.createHanningWindow(reference_image.shape, cv2.CV_32F).T
     # Estimate translation: phaseCorrelate returns (dx, dy) such that
     # the source image is shifted by (dx, dy) relative to the reference.
-    (dx, dy), response = cv2.phaseCorrelate(reference_float, source_float, hann)
-
-    logger.info(
-        f"Estimated translation: dx={dx:.2f}, dy={dy:.2f}, response={response:.3f}"
+    (dx, dy), phase_correlation = cv2.phaseCorrelate(
+        reference_float, source_float, hann
     )
 
-    if response < 0.02:
+    logger.info(
+        f"Estimated translation: dx={dx:.2f}, dy={dy:.2f}, response={phase_correlation:.3f}"
+    )
+
+    if phase_correlation < 0.02:
         logger.warning(
-            f"Low phase correlation response ({response:.3f}), translation estimate may be unreliable"
+            f"Low phase correlation response ({phase_correlation:.3f}), translation estimate may be unreliable"
         )
 
     # Apply the translation to the reference image to align it with the source
@@ -63,4 +65,4 @@ def align_two_images_translation_cv2(
         (int(round(x + dx)), int(round(y + dy))) for x, y in roi_polygon
     ]
 
-    return translated_polygon, translated_reference_image, response
+    return translated_polygon, translated_reference_image, phase_correlation
