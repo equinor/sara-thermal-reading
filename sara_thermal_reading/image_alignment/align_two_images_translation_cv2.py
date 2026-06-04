@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
+from sara_thermal_reading.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,7 @@ def align_two_images_translation_cv2(
         f"Estimated translation: dx={dx:.2f}, dy={dy:.2f}, response={phase_correlation:.3f}"
     )
 
-    if phase_correlation < 0.02:
+    if phase_correlation < settings.MIN_ALIGNMENT_SCORE:
         logger.warning(
             f"Low phase correlation response ({phase_correlation:.3f}), translation estimate may be unreliable"
         )
