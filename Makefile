@@ -1,7 +1,7 @@
 format:
-	uv run black .
-	uv run isort .
-	uv run mypy sara_thermal_reading utils_cli.py main.py
+	uv run --frozen black .
+	uv run --frozen isort .
+	uv run --frozen mypy sara_thermal_reading utils_cli.py main.py
 
 run-example:
 	uv run utils_cli.py run-fff-workflow \
