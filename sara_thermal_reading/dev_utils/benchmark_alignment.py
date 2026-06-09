@@ -18,7 +18,7 @@ def run_benchmark_alignment(
     results_path: str,
 ) -> None:
     """Interactively evaluate image alignment quality and save verdicts to JSON."""
-    threshold = settings.MIN_ALIGNMENT_SCORE
+    threshold = settings.CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION
 
     # Read folder paths from file
     folders = Path(csv_path).read_text().strip().splitlines()
@@ -93,7 +93,7 @@ def run_benchmark_alignment(
                     _annotated_image,
                     warped_polygon_list,
                     _warped_ref_img,
-                    alignment_score,
+                    matching_confidence,
                 ) = process_thermal_image(
                     reference_image, source_image, reference_polygon
                 )
@@ -107,7 +107,7 @@ def run_benchmark_alignment(
                 source_image=source_image,
                 reference_polygon=reference_polygon,
                 warped_polygon_list=warped_polygon_list,
-                alignment_score=alignment_score,
+                matching_confidence=matching_confidence,
                 threshold=threshold,
                 blob_name=blob_name,
             )
@@ -119,12 +119,14 @@ def run_benchmark_alignment(
             results.append(
                 {
                     "blob_name": blob_name,
-                    "alignment_score": alignment_score,
+                    "matching_confidence": matching_confidence,
                     "verdict": user_verdict,
                 }
             )
             verdict_str = "GOOD" if user_verdict else "BAD"
-            print(f"  {filename} | score={alignment_score:.4f} | verdict={verdict_str}")
+            print(
+                f"  {filename} | score={matching_confidence:.4f} | verdict={verdict_str}"
+            )
 
             # Save after each verdict so progress is not lost
             Path(results_path).write_text(json.dumps(results, indent=2))
@@ -140,7 +142,7 @@ def generate_benchmark_plots(
 ) -> None:
     """Generate a pie chart and threshold sweep plot from benchmark results."""
     if threshold is None:
-        threshold = settings.MIN_ALIGNMENT_SCORE
+        threshold = settings.CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION
 
     results_file = Path(results_path)
     if not results_file.exists():
@@ -280,7 +282,7 @@ def _show_benchmark_match(
     source_image: np.ndarray,
     reference_polygon: list[tuple[int, int]],
     warped_polygon_list: list[tuple[int, int]],
-    alignment_score: float,
+    matching_confidence: float,
     threshold: float,
     blob_name: str,
 ) -> bool | None:
@@ -292,8 +294,8 @@ def _show_benchmark_match(
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
     fig.suptitle(
-        f"Score: {alignment_score:.4f} | Threshold: {threshold:.4f} | "
-        f"{'ABOVE' if alignment_score >= threshold else 'BELOW'}\n"
+        f"Score: {matching_confidence:.4f} | Threshold: {threshold:.4f} | "
+        f"{'ABOVE' if matching_confidence >= threshold else 'BELOW'}\n"
         f"{blob_name}\n"
         f"Press Y (good match) or N (bad match)",
         fontsize=10,

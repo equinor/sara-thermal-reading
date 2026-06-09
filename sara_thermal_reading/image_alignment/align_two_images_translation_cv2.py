@@ -49,11 +49,6 @@ def align_two_images_translation_cv2(
         f"Estimated translation: dx={dx:.2f}, dy={dy:.2f}, response={phase_correlation:.3f}"
     )
 
-    if phase_correlation < settings.MIN_ALIGNMENT_SCORE:
-        logger.warning(
-            f"Low phase correlation response ({phase_correlation:.3f}), translation estimate may be unreliable"
-        )
-
     # Apply the translation to the reference image to align it with the source
     translation_matrix = np.array([[1, 0, dx], [0, 1, dy]], dtype=np.float32)
     translated_reference_image: NDArray[np.uint8] = cv2.warpAffine(

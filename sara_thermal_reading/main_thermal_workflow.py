@@ -65,7 +65,7 @@ def process_thermal_image(
     reference_image_uint8 = clahe.apply(reference_image_uint8).astype(np.uint8)
     source_image_uint8 = clahe.apply(source_image_uint8).astype(np.uint8)
 
-    warped_polygon_list, warped_reference_img, alignment_score = (
+    warped_polygon_list, warped_reference_img, phase_correlation = (
         align_two_images_translation_cv2(
             reference_image_uint8,
             source_image_uint8,
@@ -73,6 +73,11 @@ def process_thermal_image(
         )
     )
     warped_polygon_array = np.array(warped_polygon_list)
+    matching_confidence = phase_correlation_to_matching_confidence(phase_correlation)
+    if matching_confidence < 1.0:
+        logger.warning(
+            f"Low phase correlation response ({phase_correlation:.3f}), translation estimate may be unreliable. Maps to confidence score: {matching_confidence:.2f}. "
+        )
 
     temperature = find_temperature_in_polygon(
         source_image_array, warped_polygon_array, settings.TEMPERATURE_PERCENTILE
@@ -94,8 +99,27 @@ def process_thermal_image(
         annotated_image,
         warped_polygon_list,
         warped_reference_img,
-        alignment_score,
+        matching_confidence,
     )
+
+
+def phase_correlation_to_matching_confidence(phase_correlation: float) -> float:
+    """
+    Convert phase correlation response to a confidence score between 0 and 1.
+    This is a heuristic mapping based on expected ranges of phase correlation values.
+    """
+    if phase_correlation < settings.CONFIDENCE_CALC_LINEAR_MIN_PHASE_CORRELATION:
+        return 0.0
+    elif phase_correlation > settings.CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION:
+        return 1.0
+    else:
+        # Linearly interpolate between min and max scores
+        return (
+            phase_correlation - settings.CONFIDENCE_CALC_LINEAR_MIN_PHASE_CORRELATION
+        ) / (
+            settings.CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION
+            - settings.CONFIDENCE_CALC_LINEAR_MIN_PHASE_CORRELATION
+        )
 
 
 def run_thermal_reading_workflow(
@@ -159,7 +183,7 @@ def run_thermal_reading_workflow(
     )
 
     logger.info(f"Processing thermal image")
-    temperature, annotated_image, _, _, _ = process_thermal_image(
+    temperature, annotated_image, _, _, matching_confidence = process_thermal_image(
         reference_image, source_image, reference_polygon
     )
     logger.info(f"Created annotated thermal visualization")
@@ -177,5 +201,11 @@ def run_thermal_reading_workflow(
     )
 
     with open(result_output_file, "w") as file:
-        json.dump({"temperature": float(temperature)}, file)
+        json.dump(
+            {
+                "temperature": float(temperature),
+                "confidence": float(matching_confidence),
+            },
+            file,
+        )
         logger.info(f"Temperature: {temperature} written to {result_output_file}")
