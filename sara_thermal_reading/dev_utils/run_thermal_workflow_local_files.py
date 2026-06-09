@@ -42,7 +42,7 @@ def run_thermal_workflow_local_files(
         annotated_image,
         warped_polygon,
         warped_reference_img,
-        _alignment_score,
+        _,
     ) = process_thermal_image(reference_image, source_image, polygon_points)
 
     print(f"Workflow complete. Temperature: {temperature:.2f}°C")

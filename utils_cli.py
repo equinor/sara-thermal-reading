@@ -367,7 +367,7 @@ def run_matching_single(
         annotated_image,
         warped_polygon_list,
         warped_reference_img,
-        _alignment_score,
+        _,
     ) = process_thermal_image(reference_image, source_image, reference_polygon)
 
     plot_matching(
@@ -515,7 +515,7 @@ def benchmark_plot(
     ),
     threshold: float = typer.Option(
         None,
-        help="Alignment score threshold (defaults to MIN_ALIGNMENT_SCORE from settings)",
+        help="Alignment score threshold (defaults to CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION from settings)",
     ),
 ) -> None:
     """Generate a pie chart and threshold sweep plot from benchmark results."""
