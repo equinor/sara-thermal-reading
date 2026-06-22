@@ -145,7 +145,9 @@ def run_thermal_reading_workflow(
             reference_image_blob_storage_location.blob_container,
             reference_image_blob_storage_location.blob_name,
         )
-        return
+        raise Exception(
+            f"Reference tiff image does not exist on {reference_image_blob_storage_location.blob_container}/{reference_image_blob_storage_location.blob_name}"
+        )
     reference_image: np.ndarray = reference_image_blob_store.download_thermal_tiff(
         reference_image_blob_storage_location.blob_name
     )
@@ -162,7 +164,9 @@ def run_thermal_reading_workflow(
             reference_polygon_blob_storage_location.blob_container,
             reference_polygon_blob_storage_location.blob_name,
         )
-        return
+        raise Exception(
+            f"Reference polygon does not exist on {reference_polygon_blob_storage_location.blob_container}/{reference_polygon_blob_storage_location.blob_name}"
+        )
     reference_polygon: list[tuple[int, int]] = (
         reference_polygon_blob_store.download_polygon(
             reference_polygon_blob_storage_location.blob_name
