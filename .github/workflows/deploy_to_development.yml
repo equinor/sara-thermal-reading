@@ -48,6 +48,18 @@ jobs:
       RegistryUsername: ${{ secrets.ROBOTICS_AURORADEVACR_USERNAME }}
       RegistryPassword: ${{ secrets.ROBOTICS_AURORADEVACR_PASSWORD }}
 
+  build-and-push-components-to-ghcr:
+    name: Build and push containers to github container registry for Development
+    needs: [trigger-github-deployment, get-short-sha]
+    uses: ./.github/workflows/publish_component.yml
+    with:
+      Registry: ghcr.io
+      ImageName: ${{ github.repository }}
+      Tag: "dev.${{ needs.get-short-sha.outputs.tag }}"
+    secrets:
+      RegistryUsername: ${{ github.actor }}
+      RegistryPassword: ${{ secrets.GITHUB_TOKEN }}
+
   deploy:
     name: Update deployment in Development
     needs: [build-and-push-components, get-short-sha, trigger-github-deployment]

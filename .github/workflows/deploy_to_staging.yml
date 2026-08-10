@@ -25,6 +25,17 @@ jobs:
       RegistryUsername: ${{ secrets.ROBOTICS_AURORAPRODACR_USERNAME }}
       RegistryPassword: ${{ secrets.ROBOTICS_AURORAPRODACR_PASSWORD }}
 
+  build-and-push-release-to-robotics-staging-registry:
+    name: Build and push containers to roboticsstagingacr for Staging
+    uses: ./.github/workflows/publish_component.yml
+    with:
+      Registry: roboticsstagingacr.azurecr.io
+      ImageName: robotics/sara-thermal-reading
+      Tag: ${{ github.event.release.tag_name }}
+    secrets:
+      RegistryUsername: ${{ secrets.ROBOTICS_ROBOTICSSTAGINGACR_USERNAME }}
+      RegistryPassword: ${{ secrets.ROBOTICS_ROBOTICSSTAGINGACR_PASSWORD }}
+
   deploy:
     name: Update deployment in Staging
     needs: [build-and-push-release-to-production]
