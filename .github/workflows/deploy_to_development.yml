@@ -36,18 +36,6 @@ jobs:
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-8)
           echo "tag=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
-  build-and-push-components:
-    name: Build and push containers to acr for Development
-    needs: [trigger-github-deployment, get-short-sha]
-    uses: ./.github/workflows/publish_component.yml
-    with:
-      Registry: auroradevacr.azurecr.io
-      ImageName: robotics/sara-thermal-reading
-      Tag: "dev.${{ needs.get-short-sha.outputs.tag }}"
-    secrets:
-      RegistryUsername: ${{ secrets.ROBOTICS_AURORADEVACR_USERNAME }}
-      RegistryPassword: ${{ secrets.ROBOTICS_AURORADEVACR_PASSWORD }}
-
   build-and-push-components-to-ghcr:
     name: Build and push containers to github container registry for Development
     needs: [trigger-github-deployment, get-short-sha]
