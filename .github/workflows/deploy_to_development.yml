@@ -1,64 +1,28 @@
 name: Deploy to Development
 
-# Only one workflow in a concurrency group may run at a time
 concurrency:
   group: development-concurrency
   cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "train/**"
 
 permissions:
   contents: read
   packages: write
 
-on:
-  push:
-    branches:
-      - "main"
-    paths-ignore:
-      - "train/**"
-
 jobs:
-  trigger-github-deployment:
-    name: Trigger GitHub Deployment
-    environment: Development
-    runs-on: ubuntu-latest
-    steps:
-      - name: Empty Step
-        run: echo "Hello World"
-
-  get-short-sha:
-    needs: trigger-github-deployment
-    outputs:
-      tag: ${{ steps.get-tag.outputs.tag }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: get-tag
-        run: |
-          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-8)
-          echo "tag=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-
-  build-and-push-components-to-ghcr:
-    name: Build and push containers to github container registry for Development
-    needs: [trigger-github-deployment, get-short-sha]
-    uses: ./.github/workflows/publish_component.yml
-    with:
-      Registry: roboticsdevacr.azurecr.io
-      ImageName: robotics/sara-thermal-reading
-      Tag: "dev.${{ needs.get-short-sha.outputs.tag }}"
-    secrets:
-      RegistryUsername: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_USERNAME }}
-      RegistryPassword: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_PASSWORD }}
-
   deploy:
-    name: Update deployment in Development
-    needs: [build-and-push-components-to-ghcr, get-short-sha, trigger-github-deployment]
-    uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
+    uses: equinor/armada/.github/workflows/deploy_to_development.yml@main
     with:
-      environment: development
       registry: roboticsdevacr.azurecr.io
       image_name: robotics/sara-thermal-reading
-      tag: "dev.${{ needs.get-short-sha.outputs.tag }}"
-      author_email: ${{ github.event.head_commit.author.email }}
-      author_name: ${{ github.event.head_commit.author.name }}
       infrastructure_repository: equinor/analytics-infrastructure
+      environment_name: Development
     secrets:
+      registry_username: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_USERNAME }}
+      registry_password: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_PASSWORD }}
       deploy_key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
