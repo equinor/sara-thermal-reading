@@ -20,6 +20,7 @@ jobs:
     with:
       registry: roboticsdevacr.azurecr.io
       image_name: robotics/sara-thermal-reading
+      push_to_ghcr: true
       infrastructure_repository: equinor/robotics-infrastructure
       kustomization_base_path: k8s_kustomize/analytics/overlays
       environment_name: Development
