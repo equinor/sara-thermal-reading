@@ -28,6 +28,11 @@ jobs:
       infrastructure_repository: equinor/robotics-infrastructure
       kustomization_base_path: k8s_kustomize/analytics/overlays
       environment_name: Development
+      # Authenticate to the registry with a federated credential instead
+      # of the registry password. The environment below is what the OIDC
+      # subject binds to on the Azure side.
+      use_oidc: true
+      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     secrets:
       registry_username: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_USERNAME }}
       registry_password: ${{ secrets.ROBOTICS_ROBOTICSDEVACR_PASSWORD }}
