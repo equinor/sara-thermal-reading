@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class BlobStorageLocation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    storage_account: str = Field(default="", alias="storageAccount")
     blob_container: str = Field(..., alias="blobContainer")
     blob_name: str = Field(..., alias="blobName")
 
