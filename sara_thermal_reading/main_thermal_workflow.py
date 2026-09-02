@@ -209,6 +209,11 @@ def run_thermal_reading_workflow(
             {
                 "temperature": float(temperature),
                 "confidence": float(matching_confidence),
+                "outputBlobStorageLocation": {
+                    "storageAccount": visualized_blob_storage_location.storage_account,
+                    "blobContainer": visualized_blob_storage_location.blob_container,
+                    "blobName": visualized_blob_storage_location.blob_name,
+                },
             },
             file,
         )
