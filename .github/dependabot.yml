@@ -33,3 +33,13 @@ updates:
       - dependency-name: python
         update-types:
           - version-update:semver-major
+
+  # GitHub Actions dependencies.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
