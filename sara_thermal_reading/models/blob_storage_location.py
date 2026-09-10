@@ -4,8 +4,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class BlobStorageLocation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    storage_account: str = Field(..., alias="storageAccount")
     blob_container: str = Field(..., alias="blobContainer")
     blob_name: str = Field(..., alias="blobName")
+
+    @field_validator("storage_account")
+    def validate_storage_account(cls, v: str) -> str:
+        if not v:
+            raise ValueError("storageAccount cannot be empty")
+        return v
 
     @field_validator("blob_container")
     def validate_blob_container(cls, v: str) -> str:

@@ -22,14 +22,21 @@ setup_open_telemetry()
 tracer = trace.get_tracer(settings.OTEL_SERVICE_NAME)
 
 
+class ImageCoordinate(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False, strict=True)
+
+    x: float
+    y: float
+
+
 class ExtrasModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     reference_image_blob_storage_location: BlobStorageLocation = Field(
         ..., alias="referenceImageBlobStorageLocation"
     )
-    reference_polygon_blob_storage_location: BlobStorageLocation = Field(
-        ..., alias="referencePolygonBlobStorageLocation"
+    reference_polygon: list[ImageCoordinate] = Field(
+        ..., alias="referencePolygon", min_length=3
     )
 
 
@@ -56,7 +63,7 @@ def run_thermal_reading(
             "JSON object with extra per-workflow parameters. For "
             "sara-thermal-reading, must contain "
             "'referenceImageBlobStorageLocation' and "
-            "'referencePolygonBlobStorageLocation'."
+            "'referencePolygon' (at least three {x, y} coordinate objects)."
         ),
     ),
     result_output_file: str = typer.Option(
@@ -75,7 +82,9 @@ def run_thermal_reading(
     )
     parsed_extras = parse_extras(extras, ExtrasModel)
     reference_image_location = parsed_extras.reference_image_blob_storage_location
-    reference_polygon_location = parsed_extras.reference_polygon_blob_storage_location
+    reference_polygon = [
+        (point.x, point.y) for point in parsed_extras.reference_polygon
+    ]
 
     with tracer.start_as_current_span(
         "cli.run",
@@ -86,8 +95,7 @@ def run_thermal_reading(
             "dst.blob": visualized_location.blob_name,
             "reference.image.container": reference_image_location.blob_container,
             "reference.image.blob": reference_image_location.blob_name,
-            "reference.polygon.container": reference_polygon_location.blob_container,
-            "reference.polygon.blob": reference_polygon_location.blob_name,
+            "reference.polygon.vertex_count": len(reference_polygon),
         },
     ) as span:
         try:
@@ -95,7 +103,7 @@ def run_thermal_reading(
                 anonymized_location,
                 visualized_location,
                 reference_image_location,
-                reference_polygon_location,
+                reference_polygon,
                 result_output_file,
             )
         except Exception as e:

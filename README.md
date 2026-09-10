@@ -18,8 +18,23 @@ uv lock --upgrade
 
 ### Setup
 
-For the thermal reading to run, we need a reference image and reference polygon located in a blob store.
-Both the image and polygon needs to be stored in a container named `installation_code` and a folder named `tagId_inspectionDescription`. For an example see the saradev, saradevthermalref storage account.
+Thermal reading needs a reference TIFF image in blob storage and a reference polygon supplied by SARA.
+SARA stores polygon coordinates in its database and passes them directly in `--extras`:
+
+```json
+{
+  "referenceImageBlobStorageLocation": {
+    "storageAccount": "saradevthermalref",
+    "blobContainer": "kaa",
+    "blobName": "thermal-references/KAA/thermal-tag-1/reference_image.tiff"
+  },
+  "referencePolygon": [{"x": 287, "y": 137}, {"x": 277, "y": 186}, {"x": 360, "y": 194}]
+}
+```
+
+The polygon must contain at least three points with finite numeric `x` and `y` values
+in reference-image pixel coordinates. Fractional coordinates are supported.
+The workflow no longer accepts `referencePolygonBlobStorageLocation` or downloads a polygon blob.
 
 ### Install locally
 
@@ -39,6 +54,9 @@ REFERENCE_STORAGE_CONNECTION_STRING=ht ...
 ```
 
 ## Dev utils
+
+The standalone cloud utilities below still read and write polygon files in blob storage;
+those files are separate from the inline polygon used by the SARA workflow.
 
 ### Create reference polygon
 
@@ -92,7 +110,7 @@ graph TD
     subgraph Inputs
         A[Source Thermal Image]
         C[Reference Thermal Image]
-        B[Reference Polygon .json]
+        B[Inline Reference Polygon]
     end
 
     subgraph Preprocessing

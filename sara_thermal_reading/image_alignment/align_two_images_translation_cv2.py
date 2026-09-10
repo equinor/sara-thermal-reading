@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 
 import cv2
 import numpy as np
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 def align_two_images_translation_cv2(
     reference_image: NDArray[np.uint8],
     source_image: NDArray[np.uint8],
-    roi_polygon: list[tuple[int, int]],
+    roi_polygon: Sequence[tuple[float, float]],
 ) -> tuple[list[tuple[int, int]], NDArray[np.uint8], float]:
     """
     Align reference image to source image using translation only, and

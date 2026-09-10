@@ -18,6 +18,7 @@ class _ClosedExtras(BaseModel):
 
 def _loc(container: str = "b", blob: str = "c") -> dict[str, str]:
     return {
+        "storageAccount": "account",
         "blobContainer": container,
         "blobName": blob,
     }
@@ -26,6 +27,7 @@ def _loc(container: str = "b", blob: str = "c") -> dict[str, str]:
 def test_parse_input_returns_single_blob_storage_location() -> None:
     expected: list[dict[str, str]] = [
         {
+            "storageAccount": "account",
             "blobContainer": "src-container",
             "blobName": "src-blob.tiff",
         }
@@ -42,6 +44,7 @@ def test_parse_input_returns_single_blob_storage_location() -> None:
 
 def test_parse_output_returns_blob_storage_location() -> None:
     expected: dict[str, str] = {
+        "storageAccount": "account",
         "blobContainer": "dst-container",
         "blobName": "dst-blob.png",
     }
