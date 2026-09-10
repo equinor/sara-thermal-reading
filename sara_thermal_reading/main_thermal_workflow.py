@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Sequence
 
 import cv2
 import numpy as np
@@ -34,7 +35,7 @@ __all__ = [
 def process_thermal_image(
     reference_image: NDArray[np.float64],
     source_image_array: NDArray[np.float64],
-    reference_polygon: list[tuple[int, int]],
+    reference_polygon: Sequence[tuple[float, float]],
 ) -> tuple[
     float,
     NDArray[np.uint8],
@@ -126,13 +127,16 @@ def run_thermal_reading_workflow(
     anonymized_blob_storage_location: BlobStorageLocation,
     visualized_blob_storage_location: BlobStorageLocation,
     reference_image_blob_storage_location: BlobStorageLocation,
-    reference_polygon_blob_storage_location: BlobStorageLocation,
+    reference_polygon: Sequence[tuple[float, float]],
     result_output_file: str,
 ) -> None:
 
     logger.info(f"Starting run thermal reading workflow")
 
-    logger.info(f"Loading reference image and polygon")
+    logger.info(
+        "Loading reference image with %d supplied polygon vertices",
+        len(reference_polygon),
+    )
     reference_image_blob_store = BlobStore(
         installation_code=reference_image_blob_storage_location.blob_container,
         connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
@@ -152,27 +156,7 @@ def run_thermal_reading_workflow(
         reference_image_blob_storage_location.blob_name
     )
 
-    reference_polygon_blob_store = BlobStore(
-        installation_code=reference_polygon_blob_storage_location.blob_container,
-        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
-    )
-    if not reference_polygon_blob_store.check_if_exists(
-        reference_polygon_blob_storage_location.blob_name
-    ):
-        logger.error(
-            "Reference polygon does not exist on %s/%s",
-            reference_polygon_blob_storage_location.blob_container,
-            reference_polygon_blob_storage_location.blob_name,
-        )
-        raise Exception(
-            f"Reference polygon does not exist on {reference_polygon_blob_storage_location.blob_container}/{reference_polygon_blob_storage_location.blob_name}"
-        )
-    reference_polygon: list[tuple[int, int]] = (
-        reference_polygon_blob_store.download_polygon(
-            reference_polygon_blob_storage_location.blob_name
-        )
-    )
-    logger.info(f"Downloaded reference image and polygon")
+    logger.info("Downloaded reference image")
 
     logger.info(f"Downloading thermal TIFF image from anonymized")
     anonymized_blob_store = BlobStore(
@@ -205,11 +189,14 @@ def run_thermal_reading_workflow(
     )
 
     with open(result_output_file, "w") as file:
-        json.dump(
-            {
-                "temperature": float(temperature),
-                "confidence": float(matching_confidence),
+        result = {
+            "temperature": float(temperature),
+            "confidence": float(matching_confidence),
+            "outputBlobStorageLocation": {
+                "storageAccount": visualized_blob_storage_location.storage_account,
+                "blobContainer": visualized_blob_storage_location.blob_container,
+                "blobName": visualized_blob_storage_location.blob_name,
             },
-            file,
-        )
+        }
+        json.dump(result, file)
         logger.info(f"Temperature: {temperature} written to {result_output_file}")
