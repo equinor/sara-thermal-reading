@@ -10,15 +10,10 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     groups:
-      # Bundle patch + minor bumps into a single weekly PR. Cooldown (native
-      # 3-day default) prevents just-released versions from being included.
-      python-patch-minor:
+      # Bundle all Python version updates into a single weekly PR.
+      python-dependencies:
         patterns: ["*"]
-        update-types: ["patch", "minor"]
-      # Group major bumps separately from patch + minor updates for review.
-      python-major:
-        patterns: ["*"]
-        update-types: ["major"]
+        applies-to: version-updates
 
   # Docker base images.
   - package-ecosystem: docker
