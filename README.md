@@ -55,37 +55,24 @@ REFERENCE_STORAGE_CONNECTION_STRING=ht ...
 
 ## Dev utils
 
-The standalone cloud utilities below still read polygon files from blob storage;
-those files are separate from the inline polygon used by the SARA workflow.
-
 ### Create reference polygon
 
-Draw polygon directly on image
+Draw a polygon on a local thermal TIFF image and save it as JSON
 
 ```bash
-python utils_cli.py create-polygon path/to/image.fff
-```
-
-Will by default save to `reference_polygon.json` in the current directory
-
-### Show reference polygon for thermal reference image
-
-Show reference polygon on thermal reference image
-
-```bash
-python utils_cli.py show-polygon-cloud blobstorageaccountname "tagId" "inspectiondescription"
+python utils_cli.py create-polygon-local --image-path path/to/image.tiff --output-path reference_polygon.json
 ```
 
 ### Plot reference polygon local files
 
 ```bash
-python utils_cli.py plot-fff path/to/image.fff --polygon-json-path path/to/reference_polygon.json
+python utils_cli.py plot-thermal path/to/image.tiff --polygon-json-path path/to/reference_polygon.json
 ```
 
-### Run local fff workflow with example data
+### Run local workflow with example data
 
 ```bash
-python utils_cli.py run-fff-workflow --polygon-path example-data/asset-example/polygon.json --reference-image-path example-data/asset-example/thermal_image.fff
+python utils_cli.py run-fff-workflow --polygon-path example-data/asset-example/polygon.json --reference-image-path example-data/asset-example/thermal_image.tiff
 ```
 
 ## Pipeline Diagram
