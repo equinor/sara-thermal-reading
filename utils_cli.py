@@ -28,7 +28,6 @@ from sara_thermal_reading.visualization.plotting import (
 
 app = typer.Typer()
 
-REFERENCE_IMAGE_JPG_FILENAME = "reference_image.jpeg"
 REFERENCE_POLYGON_FILENAME = "reference_polygon.json"
 
 
@@ -94,56 +93,6 @@ def plot_current_reference_image_and_polygon(
         reference_polygon,
     )
     plt.show()
-
-
-@app.command()
-def create_polygon_cloud(
-    tag_id: str = typer.Option(..., help="Tag"),
-    inspection_description: str = typer.Option(..., help="Inspection description"),
-) -> None:
-    reference_blob_store = BlobStore(
-        installation_code="kaa",
-        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
-    )
-    reference_image_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_TIFF_FILENAME}"
-    )
-    reference_image: np.ndarray = reference_blob_store.download_thermal_tiff(
-        reference_image_blob_name
-    )
-    reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{REFERENCE_POLYGON_FILENAME}"
-    )
-    reference_polygon: list[tuple[int, int]] | None
-    if reference_blob_store.check_if_exists(reference_polygon_blob_name):
-        reference_polygon = reference_blob_store.download_polygon(
-            reference_polygon_blob_name
-        )
-    else:
-        reference_polygon = None
-    reference_image_jpg_blob_name = (
-        f"{tag_id}_{inspection_description}/{REFERENCE_IMAGE_JPG_FILENAME}"
-    )
-    reference_image_jpg: np.ndarray | None
-    if reference_blob_store.check_if_exists(reference_image_jpg_blob_name):
-        reference_image_jpg = reference_blob_store.download_image_array(
-            reference_image_jpg_blob_name
-        )
-    else:
-        reference_image_jpg = None
-
-    print("You should now create the polygon. ")
-    print("If the polygon is empty, there will not be stored a reference polygon. ")
-    polygon: list[tuple[int, int]] | None = create_reference_polygon(
-        ref_image=reference_image,
-        ref_image_jpg=reference_image_jpg,
-        ref_polygon=reference_polygon,
-    )
-
-    if polygon is not None:
-        reference_blob_store.upload_polygon(polygon, reference_polygon_blob_name)
-
-        print(f"Polygon uploaded to blob storage at {reference_polygon_blob_name}. ")
 
 
 @app.command()

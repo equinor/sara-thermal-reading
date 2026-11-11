@@ -55,7 +55,7 @@ REFERENCE_STORAGE_CONNECTION_STRING=ht ...
 
 ## Dev utils
 
-The standalone cloud utilities below still read and write polygon files in blob storage;
+The standalone cloud utilities below still read polygon files from blob storage;
 those files are separate from the inline polygon used by the SARA workflow.
 
 ### Create reference polygon
@@ -67,14 +67,6 @@ python utils_cli.py create-polygon path/to/image.fff
 ```
 
 Will by default save to `reference_polygon.json` in the current directory
-
-### Create reference polygon for thermal reference image
-
-Draw polygon on thermal reference image, and save it to blob
-
-```bash
-python utils_cli.py create-polygon-cloud blobstorageaccountname "tagId" "inspectiondescription"
-```
 
 ### Show reference polygon for thermal reference image
 
