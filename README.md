@@ -82,13 +82,6 @@ python utils_cli.py show-polygon-cloud blobstorageaccountname "tagId" "inspectio
 python utils_cli.py plot-fff path/to/image.fff --polygon-json-path path/to/reference_polygon.json
 ```
 
-### Plot cloud reference polygon
-
-```bash
-python utils_cli.py plot-current-reference-image-and-polygon \
-    --installation-code "hua" --tag-id testtag --inspection-description testdesc
-```
-
 ### Run local fff workflow with example data
 
 ```bash

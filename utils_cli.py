@@ -21,10 +21,7 @@ from sara_thermal_reading.dev_utils.run_thermal_workflow_local_files import (
 )
 from sara_thermal_reading.file_io.blob import BlobStore
 from sara_thermal_reading.main_thermal_workflow import process_thermal_image
-from sara_thermal_reading.visualization.plotting import (
-    plot_thermal_from_path,
-    plot_thermal_image,
-)
+from sara_thermal_reading.visualization.plotting import plot_thermal_from_path
 
 app = typer.Typer()
 
@@ -62,37 +59,6 @@ def plot_thermal(
     ),
 ) -> None:
     plot_thermal_from_path(file_path, polygon_json_path)
-
-
-@app.command()
-def plot_current_reference_image_and_polygon(
-    installation_code: str = typer.Option(..., help="Installation code"),
-    tag_id: str = typer.Option(..., help="Tag ID"),
-    inspection_description: str = typer.Option(..., help="Inspection description"),
-) -> None:
-    reference_blob_store = BlobStore(
-        installation_code=installation_code,
-        connection_string=settings.REFERENCE_STORAGE_CONNECTION_STRING,
-    )
-    reference_image_blob_name = (
-        f"{tag_id}_{inspection_description}/{settings.REFERENCE_IMAGE_TIFF_FILENAME}"
-    )
-    reference_image: np.ndarray = reference_blob_store.download_thermal_tiff(
-        reference_image_blob_name
-    )
-    reference_polygon_blob_name = (
-        f"{tag_id}_{inspection_description}/{REFERENCE_POLYGON_FILENAME}"
-    )
-    reference_polygon: list[tuple[int, int]] = reference_blob_store.download_polygon(
-        reference_polygon_blob_name
-    )
-
-    plot_thermal_image(
-        reference_image,
-        f"Reference Image: {installation_code}/{tag_id}_{inspection_description}",
-        reference_polygon,
-    )
-    plt.show()
 
 
 @app.command()
