@@ -1,7 +1,7 @@
-name: Tag release image for Kargo staging promotion
+name: Deploy to Staging
 
 concurrency:
-  group: staging-release-${{ github.event.release.tag_name }}
+  group: staging-release
   cancel-in-progress: false
 
 on:
@@ -10,74 +10,30 @@ on:
 
 permissions:
   contents: read
+  packages: write
   id-token: write
 
 jobs:
-  tag-existing-dev-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Release tagging writes only to dev ACR. The Development push identity is
-    # federated to this repository's Development environment.
-    environment: Development
-    env:
-      REGISTRY: roboticsdevacr
-      IMAGE: robotics/sara-thermal-reading
-      VERSION: ${{ github.event.release.tag_name }}
-    steps:
-      - name: Check out the release's source commit
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.release.tag_name }}
+  publish:
+    if: github.event.release.prerelease == false
+    uses: equinor/armada/.github/workflows/publish_release_images.yml@main
+    with:
+      image_name: robotics/sara-thermal-reading
+      tag: ${{ github.event.release.tag_name }}
+      push_to_ghcr: true
+      azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Sign in to Azure
-        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
-        with:
-          client-id: ${{ vars.ACR_PUSH_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Tag the existing dev digest (no rebuild)
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vX.Y.Z release tag"; exit 1; }
-          COMMIT=$(git rev-parse HEAD)
-          SHORT_SHA=${COMMIT:0:8}
-          IMAGE_URL="${REGISTRY}.azurecr.io/${IMAGE}"
-          DEV_TAG="dev.${SHORT_SHA}"
-
-          # The push-to-main build may still be running when the release is published.
-          # Wait up to 10 minutes for this exact commit, never the mutable dev tag.
-          DIGEST=""
-          LAST_LOOKUP_ERROR=""
-          for attempt in {1..31}; do
-            if LOOKUP_RESULT=$(az acr manifest show-metadata -r "$REGISTRY" -n "${IMAGE}:${DEV_TAG}" --query digest -o tsv --only-show-errors 2>&1); then
-              [[ "$LOOKUP_RESULT" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Invalid digest for ${IMAGE}:${DEV_TAG}: $LOOKUP_RESULT"; exit 1; }
-              DIGEST=$LOOKUP_RESULT
-              break
-            fi
-            LAST_LOOKUP_ERROR=$LOOKUP_RESULT
-            if (( attempt < 31 )); then
-              echo "Waiting for ${IMAGE}:${DEV_TAG} from commit $COMMIT (attempt $attempt/31)"
-              sleep 20
-            fi
-          done
-          if [[ -z "$DIGEST" ]]; then
-            echo "Dev image ${IMAGE}:${DEV_TAG} for release commit $COMMIT was not available after 10 minutes. Check the Deploy to Development publish job for this commit (it may have failed, been skipped, or been canceled)." >&2
-            echo "Last registry response: $LAST_LOOKUP_ERROR" >&2
-            exit 1
-          fi
-          echo "Release $VERSION from commit $COMMIT: ${IMAGE_URL}@${DIGEST}"
-
-          if EXISTING_DIGEST=$(az acr manifest show-metadata -r "$REGISTRY" -n "${IMAGE}:${VERSION}" --query digest -o tsv 2>/dev/null); then
-            [[ "$EXISTING_DIGEST" == "$DIGEST" ]] || { echo "Refusing to move existing release tag $VERSION"; exit 1; }
-            echo "Release tag already points to the expected digest."
-            exit 0
-          fi
-
-          az acr login --name "$REGISTRY"
-          # --prefer-index=false avoids wrapping a single-platform image in a
-          # new OCI index (which would change its digest).
-          docker buildx imagetools create --prefer-index=false --tag "${IMAGE_URL}:${VERSION}" "${IMAGE_URL}@${DIGEST}"
-          VERSION_DIGEST=$(az acr manifest show-metadata -r "$REGISTRY" -n "${IMAGE}:${VERSION}" --query digest -o tsv)
-          [[ "$VERSION_DIGEST" == "$DIGEST" ]] || { echo "Release tag does not point to the dev digest"; exit 1; }
+  deploy:
+    needs: publish
+    if: needs.publish.outputs.is_latest == 'true'
+    uses: equinor/armada/.github/workflows/update_kubernetes_deployment.yml@main
+    with:
+      environment: staging
+      registry: roboticsstagingacr.azurecr.io
+      tag: ${{ github.event.release.tag_name }}
+      image_name: robotics/sara-thermal-reading
+      author_name: ${{ github.event.release.author.login }}
+      infrastructure_repository: equinor/robotics-infrastructure
+      kustomization_base_path: k8s_kustomize/analytics/overlays
+    secrets:
+      deploy_key: ${{ secrets.ANALYTICS_INFRASTRUCTURE_DEPLOY_KEY }}
