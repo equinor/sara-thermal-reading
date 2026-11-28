@@ -9,12 +9,17 @@ import tifffile
 import typer
 
 from sara_thermal_reading.config.settings import settings
-from sara_thermal_reading.dev_utils.benchmark_alignment import (
-    generate_benchmark_plots,
-    run_benchmark_alignment,
-)
 from sara_thermal_reading.dev_utils.create_reference_polygon import (
     create_reference_polygon,
+)
+from sara_thermal_reading.dev_utils.dataset_builder import (
+    DEFAULT_CONTAINER,
+    DEFAULT_STORAGE_ACCOUNT,
+    get_dataset_status,
+    label_dataset,
+    print_dataset_status,
+    upload_source_files,
+    validate_blob_dataset,
 )
 from sara_thermal_reading.dev_utils.run_thermal_workflow_local_files import (
     run_thermal_workflow_local_files,
@@ -328,44 +333,124 @@ def run_matching_all(
         )
 
 
-@app.command()
-def benchmark_alignment(
-    csv_path: str = typer.Option(
-        ..., help="Path to file with blob folder paths (one per line)"
+@app.command("upload-source-files")
+def upload_source_files_cmd(
+    from_st_acc: str | None = typer.Option(
+        None, help="Source Azure storage account to copy thermal TIFFs from"
     ),
-    src_st_acc: str = typer.Option(..., help="Source storage account name"),
-    ref_st_acc: str = typer.Option(..., help="Reference storage account name"),
-    installation_code: str = typer.Option(
-        ..., help="Installation code (container name)"
+    from_container: str | None = typer.Option(
+        None, help="Source container name (installation code)"
     ),
-    results_path: str = typer.Option(
-        "benchmark_results.json", help="Path to save results JSON"
+    prefix: str | None = typer.Option(
+        None, help="Source blob prefix (alternative to --folders-file)"
+    ),
+    folders_file: Path | None = typer.Option(
+        None, help="Text file with source blob prefixes (one per line)"
+    ),
+    from_dir: Path | None = typer.Option(
+        None, help="Local directory of thermal TIFF files to upload into source-files/"
+    ),
+    target_subfolder: str | None = typer.Option(
+        None, help="Optional subfolder under source-files/ for grouping"
+    ),
+    storage_account: str = typer.Option(
+        DEFAULT_STORAGE_ACCOUNT, help="Target dataset Azure storage account"
+    ),
+    container: str = typer.Option(
+        DEFAULT_CONTAINER, help="Target dataset blob container"
     ),
 ) -> None:
-    """Interactively evaluate image alignment quality and save verdicts to JSON."""
-    run_benchmark_alignment(
-        csv_path, src_st_acc, ref_st_acc, installation_code, results_path
+    """Step 1: Upload thermal TIFF files into top-level source-files/ in saradatasets."""
+    uploaded, skipped = upload_source_files(
+        storage_account=storage_account,
+        container=container,
+        from_storage_account=from_st_acc,
+        from_container=from_container,
+        prefix=prefix,
+        folders_file=folders_file,
+        from_dir=from_dir,
+        target_subfolder=target_subfolder,
+    )
+    print(
+        f"Uploaded {uploaded} thermal TIFF files to "
+        f"https://{storage_account}.blob.core.windows.net/{container}/source-files/ "
+        f"(skipped {skipped} existing)."
     )
 
 
 @app.command()
-def benchmark_plot(
-    results_path: str = typer.Option(
-        "benchmark_results.json", help="Path to results JSON from benchmark-alignment"
+def dataset_status(
+    version: str = typer.Option("v001", help="Dataset version (e.g. v001)"),
+    split: str = typer.Option("val", help="Dataset split name (e.g. val)"),
+    show_all: bool = typer.Option(
+        False, help="List every source file with its status instead of only unlabelled"
     ),
-    output_path: str = typer.Option(
-        "benchmark_result.png", help="Path to save pie chart"
+    storage_account: str = typer.Option(
+        DEFAULT_STORAGE_ACCOUNT, help="Dataset Azure storage account"
     ),
-    line_plot_path: str = typer.Option(
-        "benchmark_threshold_sweep.png", help="Path to save threshold sweep line plot"
-    ),
-    threshold: float = typer.Option(
-        None,
-        help="Alignment score threshold (defaults to CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION from settings)",
-    ),
+    container: str = typer.Option(DEFAULT_CONTAINER, help="Dataset blob container"),
 ) -> None:
-    """Generate a pie chart and threshold sweep plot from benchmark results."""
-    generate_benchmark_plots(results_path, output_path, line_plot_path, threshold)
+    """Show which files in source-files/ are references, labelled, or unlabelled."""
+    summary = get_dataset_status(
+        version=version,
+        split=split,
+        storage_account=storage_account,
+        container=container,
+    )
+    print_dataset_status(summary, show_all=show_all)
+
+
+@app.command("label-dataset")
+def label_dataset_cmd(
+    version: str = typer.Option("v001", help="Dataset version (e.g. v001)"),
+    split: str = typer.Option("val", help="Dataset split name (e.g. val)"),
+    from_version: str | None = typer.Option(
+        None,
+        help="Optional existing version to seed annotations from when creating a new version",
+    ),
+    group: str | None = typer.Option(
+        None, help="Optional substring filter to label only matching tag/group IDs"
+    ),
+    storage_account: str = typer.Option(
+        DEFAULT_STORAGE_ACCOUNT, help="Dataset Azure storage account"
+    ),
+    container: str = typer.Option(DEFAULT_CONTAINER, help="Dataset blob container"),
+) -> None:
+    """Step 2: Interactively label unlabelled files from source-files/ directly in blob storage."""
+    label_dataset(
+        version=version,
+        split=split,
+        storage_account=storage_account,
+        container=container,
+        from_version=from_version,
+        group_filter=group,
+    )
+
+
+@app.command()
+def validate_dataset(
+    version: str = typer.Option("v001", help="Dataset version (e.g. v001)"),
+    split: str = typer.Option("val", help="Dataset split name (e.g. val)"),
+    storage_account: str = typer.Option(
+        DEFAULT_STORAGE_ACCOUNT, help="Dataset Azure storage account"
+    ),
+    container: str = typer.Option(DEFAULT_CONTAINER, help="Dataset blob container"),
+) -> None:
+    """Validate a thermal validation dataset directly in Azure Blob Storage."""
+    thermal_split = validate_blob_dataset(
+        version=version,
+        split=split,
+        storage_account=storage_account,
+        container=container,
+    )
+    matchable = sum(1 for sample in thermal_split.samples.values() if sample.matchable)
+    unmatchable = len(thermal_split.samples) - matchable
+    print(
+        f"Valid thermal dataset ({version}/{split}): "
+        f"{len(thermal_split.references)} references, "
+        f"{len(thermal_split.samples)} samples "
+        f"({matchable} matchable, {unmatchable} unmatchable)."
+    )
 
 
 if __name__ == "__main__":
