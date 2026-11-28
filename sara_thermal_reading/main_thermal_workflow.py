@@ -1,19 +1,18 @@
 import json
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
 from numpy.typing import NDArray
 
 from sara_thermal_reading.config.settings import settings
-from sara_thermal_reading.models.blob_storage_location import BlobStorageLocation
-
-logger = logging.getLogger(__name__)
-
 from sara_thermal_reading.file_io.blob import BlobStore
-from sara_thermal_reading.image_alignment.align_two_images_translation_cv2 import (
-    align_two_images_translation_cv2,
+from sara_thermal_reading.image_alignment.align_dispatcher import (
+    AlignmentMethod,
+    align_thermal_images,
+    phase_correlation_to_matching_confidence,
 )
 from sara_thermal_reading.image_processing.convert_thermal_to_uint8 import (
     convert_thermal_to_uint8,
@@ -21,21 +20,93 @@ from sara_thermal_reading.image_processing.convert_thermal_to_uint8 import (
 from sara_thermal_reading.image_processing.find_temperature_in_polygon import (
     find_temperature_in_polygon,
 )
+from sara_thermal_reading.models.blob_storage_location import BlobStorageLocation
 from sara_thermal_reading.visualization.create_annotated_thermal_visualization import (
     create_annotated_thermal_visualization,
 )
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "BlobStorageLocation",
+    "ThermalReadingResult",
+    "evaluate_thermal_reading",
+    "phase_correlation_to_matching_confidence",
     "process_thermal_image",
     "run_thermal_reading_workflow",
 ]
+
+
+@dataclass(frozen=True)
+class ThermalReadingResult:
+    temperature: float
+    warped_polygon: list[tuple[int, int]]
+    warped_reference_image: NDArray[np.uint8]
+    raw_score: float
+    matching_confidence: float
+
+
+def preprocess_thermal_pair_for_alignment(
+    reference_image: NDArray[np.float64],
+    source_image: NDArray[np.float64],
+) -> tuple[NDArray[np.uint8], NDArray[np.uint8]]:
+    shared_vmin = max(float(np.min(reference_image)), float(np.min(source_image)))
+    shared_vmax = min(float(np.max(reference_image)), float(np.max(source_image)))
+    shared_clip_range = (shared_vmin, shared_vmax)
+
+    reference_uint8 = convert_thermal_to_uint8(
+        reference_image, clip_range=shared_clip_range
+    )
+    source_uint8 = convert_thermal_to_uint8(source_image, clip_range=shared_clip_range)
+
+    clahe = cv2.createCLAHE(clipLimit=20.0, tileGridSize=(8, 8))
+    reference_uint8 = clahe.apply(reference_uint8).astype(np.uint8)
+    source_uint8 = clahe.apply(source_uint8).astype(np.uint8)
+    return reference_uint8, source_uint8
+
+
+def evaluate_thermal_reading(
+    reference_image: NDArray[np.float64],
+    source_image_array: NDArray[np.float64],
+    reference_polygon: Sequence[tuple[float, float]],
+    alignment_method: AlignmentMethod = "phase_correlation",
+) -> ThermalReadingResult:
+    reference_uint8, source_uint8 = preprocess_thermal_pair_for_alignment(
+        reference_image, source_image_array
+    )
+    alignment = align_thermal_images(
+        reference_uint8,
+        source_uint8,
+        reference_polygon,
+        method=alignment_method,
+    )
+    if alignment.matching_confidence < 1.0:
+        logger.warning(
+            f"Low alignment score ({alignment.raw_score:.3f}) for method {alignment_method}, "
+            f"maps to confidence score: {alignment.matching_confidence:.2f}."
+        )
+
+    warped_polygon_array = np.array(alignment.warped_polygon)
+    temperature = find_temperature_in_polygon(
+        source_image_array, warped_polygon_array, settings.TEMPERATURE_PERCENTILE
+    )
+    logger.info(
+        f"Temperature inside the polygon (P{settings.TEMPERATURE_PERCENTILE:g}): {temperature}."
+    )
+    return ThermalReadingResult(
+        temperature=temperature,
+        warped_polygon=alignment.warped_polygon,
+        warped_reference_image=alignment.warped_reference_image,
+        raw_score=alignment.raw_score,
+        matching_confidence=alignment.matching_confidence,
+    )
 
 
 def process_thermal_image(
     reference_image: NDArray[np.float64],
     source_image_array: NDArray[np.float64],
     reference_polygon: Sequence[tuple[float, float]],
+    alignment_method: AlignmentMethod = "phase_correlation",
 ) -> tuple[
     float,
     NDArray[np.uint8],
@@ -43,84 +114,26 @@ def process_thermal_image(
     NDArray[np.uint8],
     float,
 ]:
-
-    # Normalize both images to their shared (overlapping) temperature range so
-    # that a given temperature maps to the same brightness in both images.
-    # This prevents absolute temperature differences between captures from
-    # affecting the matching.
-    shared_vmin = max(float(np.min(reference_image)), float(np.min(source_image_array)))
-    shared_vmax = min(float(np.max(reference_image)), float(np.max(source_image_array)))
-    shared_clip_range = (shared_vmin, shared_vmax)
-
-    reference_image_uint8 = convert_thermal_to_uint8(
-        reference_image, clip_range=shared_clip_range
+    result = evaluate_thermal_reading(
+        reference_image=reference_image,
+        source_image_array=source_image_array,
+        reference_polygon=reference_polygon,
+        alignment_method=alignment_method,
     )
-    source_image_uint8 = convert_thermal_to_uint8(
-        source_image_array, clip_range=shared_clip_range
-    )
-
-    # Apply CLAHE to enhance local structural contrast (edges, gradients) in both
-    # images equally. ORB keypoints are gradient-based, so this makes feature
-    # detection focus on structure rather than absolute brightness levels.
-    clahe = cv2.createCLAHE(clipLimit=20.0, tileGridSize=(8, 8))
-    reference_image_uint8 = clahe.apply(reference_image_uint8).astype(np.uint8)
-    source_image_uint8 = clahe.apply(source_image_uint8).astype(np.uint8)
-
-    warped_polygon_list, warped_reference_img, phase_correlation = (
-        align_two_images_translation_cv2(
-            reference_image_uint8,
-            source_image_uint8,
-            reference_polygon,
-        )
-    )
-    warped_polygon_array = np.array(warped_polygon_list)
-    matching_confidence = phase_correlation_to_matching_confidence(phase_correlation)
-    if matching_confidence < 1.0:
-        logger.warning(
-            f"Low phase correlation response ({phase_correlation:.3f}), translation estimate may be unreliable. Maps to confidence score: {matching_confidence:.2f}. "
-        )
-
-    temperature = find_temperature_in_polygon(
-        source_image_array, warped_polygon_array, settings.TEMPERATURE_PERCENTILE
-    )
-
-    logger.info(
-        f"Temperature inside the polygon (P{settings.TEMPERATURE_PERCENTILE:g}): {temperature}."
-    )
-
+    warped_polygon_array = np.array(result.warped_polygon, dtype=np.float32)
     annotated_image = create_annotated_thermal_visualization(
         source_image_array,
         warped_polygon_array,
-        temperature,
+        result.temperature,
         settings.TEMPERATURE_PERCENTILE,
     )
-
     return (
-        temperature,
+        result.temperature,
         annotated_image,
-        warped_polygon_list,
-        warped_reference_img,
-        matching_confidence,
+        result.warped_polygon,
+        result.warped_reference_image,
+        result.matching_confidence,
     )
-
-
-def phase_correlation_to_matching_confidence(phase_correlation: float) -> float:
-    """
-    Convert phase correlation response to a confidence score between 0 and 1.
-    This is a heuristic mapping based on expected ranges of phase correlation values.
-    """
-    if phase_correlation < settings.CONFIDENCE_CALC_LINEAR_MIN_PHASE_CORRELATION:
-        return 0.0
-    elif phase_correlation > settings.CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION:
-        return 1.0
-    else:
-        # Linearly interpolate between min and max scores
-        return (
-            phase_correlation - settings.CONFIDENCE_CALC_LINEAR_MIN_PHASE_CORRELATION
-        ) / (
-            settings.CONFIDENCE_CALC_LINEAR_MAX_PHASE_CORRELATION
-            - settings.CONFIDENCE_CALC_LINEAR_MIN_PHASE_CORRELATION
-        )
 
 
 def run_thermal_reading_workflow(
@@ -130,9 +143,7 @@ def run_thermal_reading_workflow(
     reference_polygon: Sequence[tuple[float, float]],
     result_output_file: str,
 ) -> None:
-
-    logger.info(f"Starting run thermal reading workflow")
-
+    logger.info("Starting run thermal reading workflow")
     logger.info(
         "Loading reference image with %d supplied polygon vertices",
         len(reference_polygon),
@@ -157,8 +168,7 @@ def run_thermal_reading_workflow(
     )
 
     logger.info("Downloaded reference image")
-
-    logger.info(f"Downloading thermal TIFF image from anonymized")
+    logger.info("Downloading thermal TIFF image from anonymized")
     anonymized_blob_store = BlobStore(
         installation_code=anonymized_blob_storage_location.blob_container,
         connection_string=settings.SOURCE_STORAGE_CONNECTION_STRING,
@@ -170,11 +180,11 @@ def run_thermal_reading_workflow(
         f"Downloaded TIFF image from source storage account, shape: {source_image.shape}"
     )
 
-    logger.info(f"Processing thermal image")
+    logger.info("Processing thermal image")
     temperature, annotated_image, _, _, matching_confidence = process_thermal_image(
         reference_image, source_image, reference_polygon
     )
-    logger.info(f"Created annotated thermal visualization")
+    logger.info("Created annotated thermal visualization")
 
     logger.info("Uploading to visualized")
     visualized_blob_store = BlobStore(
